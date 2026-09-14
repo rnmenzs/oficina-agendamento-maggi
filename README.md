@@ -80,6 +80,7 @@ Depois execute os scripts em ordem (substituindo as variáveis conforme seu `.en
 ```bash
 PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/001_create_tables.sql
 PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/002_constraints_and_indexes.sql
+PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/003_seed.sql
 ```
 
 Mantenha `CONNECTION_STRING` no `.env` coerente com o usuário, a senha, o banco e a porta escolhidos.
@@ -132,6 +133,8 @@ Em construção.
 **O banco confere que `fim` bate com a duração do tipo de serviço.** Uma `CHECK` recalcula `inicio + duração` e recusa qualquer linha inconsistente, então as consultas de capacidade podem confiar na coluna.
 
 **Constraint de exclusão para sobreposição por veículo.** Protege a regra 4 contra concorrência sem nenhum código extra: se duas requisições passarem pela validação ao mesmo tempo, o banco recusa a segunda. A regra de capacidade (3 simultâneos) não cabe numa constraint declarativa e é tratada na camada BLL.
+
+**Seed com datas relativas.** Os agendamentos iniciais são calculados a partir da próxima segunda-feira no momento da execução, então continuam válidos em qualquer data. A próxima segunda às 09:00 já tem três serviços simultâneos, o que permite testar a regra de capacidade na hora. Cada script roda numa transação: ou aplica tudo, ou nada.
 
 **Swagger sempre habilitado e redirecionamento HTTPS só fora de desenvolvimento.** Local, a API roda em HTTP na porta 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS. O perfil `https` continua disponível com `dotnet run --launch-profile https`. Em produção, TLS normalmente termina num proxy reverso na frente da API.
 
