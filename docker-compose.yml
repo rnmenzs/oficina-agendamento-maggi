@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: oficina-db
+    env_file: .env
+    environment:
+      TZ: America/Sao_Paulo
+    ports:
+      # Porta no host configurável (DB_PORT) para não brigar com um PostgreSQL local; dentro da rede continua 5432.
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      # Scripts numerados rodam em ordem na primeira inicialização do volume (pasta vazia).
+      - ./scripts:/docker-entrypoint-initdb.d:ro
+      - oficina-db-data:/var/lib/postgresql/data
+    healthcheck:
+      # Via TCP (-h localhost): o servidor temporário que roda os scripts só escuta no socket Unix,
+      # então o container só fica "healthy" quando o servidor definitivo está no ar.
+      test: ["CMD-SHELL", "pg_isready -h localhost -U ${POSTGRES_USER:-oficina} -d ${POSTGRES_DB:-oficina}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  oficina-db-data:
