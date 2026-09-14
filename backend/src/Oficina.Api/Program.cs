@@ -1,3 +1,5 @@
+using Oficina.DAL.DependencyInjection;
+
 const string FrontendCorsPolicy = "Frontend";
 
 // Carrega variáveis do .env (raiz do repositório) como variáveis de ambiente,
@@ -13,6 +15,8 @@ var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
         "A variável de ambiente CONNECTION_STRING não está definida. "
         + "Copie .env.example para .env na raiz do repositório (cp .env.example .env).");
 builder.Configuration["ConnectionStrings:OficinaDb"] = connectionString;
+
+builder.Services.AddDal(connectionString);
 
 // Se CORS_ORIGINS estiver definida, sobrescreve as origens do appsettings.
 var corsOriginsOverride = Environment.GetEnvironmentVariable("CORS_ORIGINS");
