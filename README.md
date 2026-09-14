@@ -124,6 +124,8 @@ Em construção.
 
 **Datas em `timestamptz` e fuso fixo da oficina.** A API recebe e devolve datas em ISO 8601 com offset. As regras "não agendar no passado" e "cancelar até 2 horas antes" comparam instantes, sem fuso. A regra de horário de funcionamento converte o instante para o fuso da oficina (`America/Sao_Paulo`) antes de olhar dia da semana e hora.
 
+**Carimbos de tempo mantidos pelo banco.** As três tabelas têm `criado_em` e `atualizado_em`, ambos com `DEFAULT now()`. O padrão só vale no insert, então um gatilho move `atualizado_em` a cada `UPDATE`. A regra fica no banco em vez de repetida em cada comando da aplicação por dois motivos: vale também para escrita manual em SQL, e mantém todos os instantes sob o mesmo relógio, o do Postgres. A função do gatilho não cita tabela, então as três a reaproveitam e incluir uma nova custa uma linha. O efeito colateral aceito é que o carimbo avança em qualquer `UPDATE`, mesmo quando nenhum valor muda.
+
 **Placa normalizada.** Aceita `ABC-1234` ou `ABC1D23` na entrada (qualquer caixa) e grava em maiúsculas sem hífen, com `UNIQUE` e `CHECK` de formato no banco. A formatação para exibição fica no frontend.
 
 **Enum simples para tipo de serviço e status, sem classe de enumeração.** São três tipos com um único atributo, a duração, e quatro status sem atributo nenhum. O `switch` sobre enum faz o compilador avisar quando um valor novo fica sem duração, o DTO expõe o nome como texto e a DAL lê e grava pelo mesmo nome, que é o do `CHECK` no banco. Uma classe de enumeração só compensaria se o tipo ganhasse mais dados, como preço, ou viesse do banco.
