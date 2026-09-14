@@ -38,6 +38,8 @@ public class PlacaTests
     [InlineData("ABC1DE3")]
     [InlineData("1234ABC")]
     [InlineData("ABC 1234")]
+    [InlineData("ABC12-34")]
+    [InlineData("ABC--1234")]
     public void Criar_recusa_formato_invalido(string entrada)
     {
         var excecao = Assert.Throws<DomainException>(() => Placa.Criar(entrada));
