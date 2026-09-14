@@ -1,0 +1,25 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+
+# Node / Vite / React Router
+node_modules/
+dist/
+build/
+.react-router/
+*.tsbuildinfo
+
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# IDE / sistema
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
