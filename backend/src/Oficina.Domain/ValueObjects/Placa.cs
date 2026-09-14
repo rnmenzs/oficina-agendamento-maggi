@@ -3,7 +3,7 @@ using Oficina.Domain.Exceptions;
 
 namespace Oficina.Domain.ValueObjects;
 
-public sealed record Placa
+public sealed partial record Placa
 {
     // Guardada sem hífen e em maiúsculas (ABC1234 ou ABC1D23), a mesma forma do CHECK no banco.
     // Formatação para exibição é responsabilidade do frontend, por isso não há propriedade formatada aqui.
@@ -23,12 +23,12 @@ public sealed record Placa
             throw new DomainException("Placa é obrigatória.");
         }
 
-        if (FormatoAntigo.IsMatch(texto))
+        if (FormatoAntigo().IsMatch(texto))
         {
             return new Placa(texto.Replace("-", string.Empty));
         }
 
-        if (FormatoMercosul.IsMatch(texto))
+        if (FormatoMercosul().IsMatch(texto))
         {
             return new Placa(texto);
         }
@@ -38,6 +38,9 @@ public sealed record Placa
 
     public override string ToString() => Valor;
 
-    private static readonly Regex FormatoAntigo = new("^[A-Z]{3}-?[0-9]{4}$", RegexOptions.Compiled);
-    private static readonly Regex FormatoMercosul = new("^[A-Z]{3}[0-9][A-Z][0-9]{2}$", RegexOptions.Compiled);
+    [GeneratedRegex("^[A-Z]{3}-?[0-9]{4}$")]
+    private static partial Regex FormatoAntigo();
+
+    [GeneratedRegex("^[A-Z]{3}[0-9][A-Z][0-9]{2}$")]
+    private static partial Regex FormatoMercosul();
 }

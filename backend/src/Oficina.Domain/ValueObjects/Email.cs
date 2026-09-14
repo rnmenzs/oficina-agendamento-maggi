@@ -3,7 +3,7 @@ using Oficina.Domain.Exceptions;
 
 namespace Oficina.Domain.ValueObjects;
 
-public sealed record Email
+public sealed partial record Email
 {
     // 254 é o limite prático de um endereço (RFC 5321) e o tamanho da coluna no banco.
     private const int TamanhoMaximo = 254;
@@ -30,7 +30,7 @@ public sealed record Email
             throw new DomainException($"Email deve ter no máximo {TamanhoMaximo} caracteres.");
         }
 
-        if (!Formato.IsMatch(texto))
+        if (!Formato().IsMatch(texto))
         {
             throw new DomainException("Email inválido. Use o formato 'email@dominio.com'.");
         }
@@ -40,5 +40,6 @@ public sealed record Email
 
     public override string ToString() => Valor;
 
-    private static readonly Regex Formato = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+    [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+    private static partial Regex Formato();
 }
