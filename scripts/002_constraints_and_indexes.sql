@@ -2,7 +2,7 @@
 
 BEGIN;
 
--- Unicidade exigida pelo enunciado.
+-- Unicidade de negócio: um e-mail por cliente, uma placa por veículo.
 ALTER TABLE clientes ADD CONSTRAINT uq_clientes_email UNIQUE (email);
 ALTER TABLE veiculos ADD CONSTRAINT uq_veiculos_placa UNIQUE (placa);
 
@@ -18,7 +18,7 @@ ALTER TABLE agendamentos ADD CONSTRAINT ck_agendamentos_tipo_servico
     CHECK (tipo_servico IN ('TrocaOleo', 'Revisao', 'Diagnostico'));
 ALTER TABLE agendamentos ADD CONSTRAINT ck_agendamentos_status
     CHECK (status IN ('Agendado', 'EmAndamento', 'Concluido', 'Cancelado'));
--- fim deve ser exatamente inicio + duração do tipo de serviço (a mesma tabela do enunciado).
+-- fim deve ser exatamente inicio + duração do tipo de serviço.
 -- Assim as consultas de capacidade e sobreposição podem confiar na coluna fim.
 ALTER TABLE agendamentos ADD CONSTRAINT ck_agendamentos_fim_duracao
     CHECK (fim = inicio + CASE tipo_servico

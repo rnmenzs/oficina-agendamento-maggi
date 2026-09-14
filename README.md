@@ -112,7 +112,7 @@ Em construção.
 
 **PostgreSQL.** Além de ser gratuito e simples de subir com Docker, tem `tstzrange` e constraints de exclusão, que garantem no próprio banco que um veículo não tenha dois agendamentos ativos sobrepostos, mesmo com requisições concorrentes.
 
-**Dapper em vez de ADO.NET puro.** O SQL continua cem por cento escrito à mão e parametrizado, como o enunciado pede. O Dapper só elimina o código repetitivo de abrir `DataReader` e ler coluna por coluna, o que reduz erros bobos de índice ou de tipo. Não é um ORM: não gera SQL nem rastreia entidades.
+**Dapper em vez de ADO.NET puro.** O SQL continua cem por cento escrito à mão e parametrizado. O Dapper só elimina o código repetitivo de abrir `DataReader` e ler coluna por coluna, o que reduz erros bobos de índice ou de tipo. Não é um ORM: não gera SQL nem rastreia entidades.
 
 **xUnit.** É o framework usado pelos templates oficiais do .NET e pelo próprio ASP.NET Core. `[Theory]` com `[InlineData]` encaixa bem nas regras de negócio, que são tabelas de casos (horário de funcionamento, transições de status).
 
