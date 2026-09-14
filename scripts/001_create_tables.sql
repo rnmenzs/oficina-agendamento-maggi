@@ -20,6 +20,7 @@ CREATE TABLE clientes (
     telefone   VARCHAR(20)   NOT NULL,
     email      VARCHAR(254)  NOT NULL,                     -- gravado em minúsculas pelo value object Email
     criado_em  TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT pk_clientes PRIMARY KEY (id)
 );
 
@@ -30,6 +31,7 @@ CREATE TABLE veiculos (
     modelo      VARCHAR(100)  NOT NULL,
     ano         INTEGER       NOT NULL,
     criado_em   TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT pk_veiculos PRIMARY KEY (id),
     CONSTRAINT fk_veiculos_cliente FOREIGN KEY (cliente_id) REFERENCES clientes (id)
 );

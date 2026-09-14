@@ -47,4 +47,27 @@ ALTER TABLE agendamentos ADD CONSTRAINT ex_agendamentos_veiculo_sobreposicao
     EXCLUDE USING gist (veiculo_id WITH =, tstzrange(inicio, fim, '[)') WITH &&)
     WHERE (status IN ('Agendado', 'EmAndamento'));
 
+-- atualizado_em: o DEFAULT now() só vale no INSERT, então sem gatilho a coluna ficaria parada na
+-- data de criação depois de qualquer alteração. No banco, e não em cada UPDATE, para valer
+-- também para escrita manual e manter o instante sob o relógio do Postgres.
+-- A função é genérica: qualquer tabela com a coluna atualizado_em reaproveita o mesmo gatilho.
+CREATE FUNCTION set_atualizado_em() RETURNS trigger AS $$
+BEGIN
+    NEW.atualizado_em := now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tg_clientes_atualizado_em
+    BEFORE UPDATE ON clientes
+    FOR EACH ROW EXECUTE FUNCTION set_atualizado_em();
+
+CREATE TRIGGER tg_veiculos_atualizado_em
+    BEFORE UPDATE ON veiculos
+    FOR EACH ROW EXECUTE FUNCTION set_atualizado_em();
+
+CREATE TRIGGER tg_agendamentos_atualizado_em
+    BEFORE UPDATE ON agendamentos
+    FOR EACH ROW EXECUTE FUNCTION set_atualizado_em();
+
 COMMIT;
