@@ -126,6 +126,8 @@ Em construção.
 
 **Placa normalizada.** Aceita `ABC-1234` ou `ABC1D23` na entrada (qualquer caixa) e grava em maiúsculas sem hífen, com `UNIQUE` e `CHECK` de formato no banco. A formatação para exibição fica no frontend.
 
+**Enum simples para tipo de serviço e status, sem classe de enumeração.** São três tipos com um único atributo, a duração, e quatro status sem atributo nenhum. O `switch` sobre enum faz o compilador avisar quando um valor novo fica sem duração, o DTO expõe o nome como texto e a DAL lê e grava pelo mesmo nome, que é o do `CHECK` no banco. Uma classe de enumeração só compensaria se o tipo ganhasse mais dados, como preço, ou viesse do banco.
+
 **Status e tipo de serviço como texto com `CHECK`.** Legível direto no banco e espelha os enums do domínio, sem tabela de lookup para três valores.
 
 **Só `Agendado` e `EmAndamento` ocupam vaga.** Para capacidade e sobreposição, agendamentos `Cancelado` e `Concluido` não contam. Esse critério está nos índices parciais e na constraint de exclusão, e as consultas da BLL usam o mesmo filtro.
