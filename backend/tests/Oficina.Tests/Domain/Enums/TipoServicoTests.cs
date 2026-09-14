@@ -30,4 +30,11 @@ public class TipoServicoTests
         }
     }
 
+    [Fact]
+    public void Nomes_batem_com_o_check_do_banco()
+    {
+        var esperados = new[] { "TrocaOleo", "Revisao", "Diagnostico" };
+
+        Assert.Equal(esperados, Enum.GetNames<TipoServico>());
+    }
 }
