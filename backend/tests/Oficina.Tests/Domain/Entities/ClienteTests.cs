@@ -77,7 +77,14 @@ public class ClienteTests
     {
         var id = Guid.CreateVersion7();
 
-        var cliente = Cliente.Reconstituir(id, "Ana Souza", "11988880001", "ana@email.com", Agora, Agora);
+        var cliente = Cliente.Reconstituir(
+            id,
+            "Ana Souza",
+            "11988880001",
+            "ana@email.com",
+            Agora,
+            Agora
+        );
 
         Assert.Equal(id, cliente.Id);
     }
@@ -85,7 +92,14 @@ public class ClienteTests
     [Fact]
     public void Reconstituir_converte_os_carimbos_para_utc()
     {
-        var cliente = Cliente.Reconstituir(Guid.CreateVersion7(), "Ana", "11988880001", "ana@email.com", Agora, Agora);
+        var cliente = Cliente.Reconstituir(
+            Guid.CreateVersion7(),
+            "Ana",
+            "11988880001",
+            "ana@email.com",
+            Agora,
+            Agora
+        );
 
         Assert.Equal(TimeSpan.Zero, cliente.CriadoEm!.Value.Offset);
         Assert.Equal(Agora.UtcDateTime, cliente.CriadoEm.Value.UtcDateTime);
@@ -96,7 +110,14 @@ public class ClienteTests
     public void Clientes_com_os_mesmos_dados_continuam_sendo_clientes_diferentes()
     {
         var primeiro = Cliente.Criar("Ana", "11988880001", "ana@email.com");
-        var segundo = Cliente.Reconstituir(primeiro.Id, "Ana", "11988880001", "ana@email.com", Agora, Agora);
+        var segundo = Cliente.Reconstituir(
+            primeiro.Id,
+            "Ana",
+            "11988880001",
+            "ana@email.com",
+            Agora,
+            Agora
+        );
 
         Assert.NotEqual(primeiro, segundo);
     }

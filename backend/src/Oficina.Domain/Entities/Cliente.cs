@@ -16,7 +16,14 @@ public sealed class Cliente
     public DateTimeOffset? CriadoEm { get; }
     public DateTimeOffset? AtualizadoEm { get; }
 
-    private Cliente(Guid id, string nome, Telefone telefone, Email email, DateTimeOffset? criadoEm, DateTimeOffset? atualizadoEm)
+    private Cliente(
+        Guid id,
+        string nome,
+        Telefone telefone,
+        Email email,
+        DateTimeOffset? criadoEm,
+        DateTimeOffset? atualizadoEm
+    )
     {
         Id = id;
         Nome = nome;
@@ -27,14 +34,37 @@ public sealed class Cliente
     }
 
     // Cliente novo: o id nasce aqui, não no banco. Guid v7 é ordenado por tempo e não fragmenta o índice.
-    public static Cliente Criar(string? nome, string? telefone, string? email) =>
-        new(Guid.CreateVersion7(), ValidarNome(nome), Telefone.Criar(telefone), Email.Criar(email), criadoEm: null, atualizadoEm: null);
+    public static Cliente Criar(string? nome, string? telefone, string? email)
+    {
+        return new Cliente(
+            Guid.CreateVersion7(),
+            ValidarNome(nome),
+            Telefone.Criar(telefone),
+            Email.Criar(email),
+            criadoEm: null,
+            atualizadoEm: null
+        );
+    }
 
     // Em UTC porque as colunas são timestamptz e o Npgsql trabalha com offset zero.
     public static Cliente Reconstituir(
-        Guid id, string nome, string telefone, string email, DateTimeOffset criadoEm, DateTimeOffset atualizadoEm) =>
-        new(id, ValidarNome(nome), Telefone.Criar(telefone), Email.Criar(email),
-            criadoEm.ToUniversalTime(), atualizadoEm.ToUniversalTime());
+        Guid id,
+        string nome,
+        string telefone,
+        string email,
+        DateTimeOffset criadoEm,
+        DateTimeOffset atualizadoEm
+    )
+    {
+        return new Cliente(
+            id,
+            ValidarNome(nome),
+            Telefone.Criar(telefone),
+            Email.Criar(email),
+            criadoEm.ToUniversalTime(),
+            atualizadoEm.ToUniversalTime()
+        );
+    }
 
     private static string ValidarNome(string? nome)
     {
