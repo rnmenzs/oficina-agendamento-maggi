@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using Oficina.DAL.Repositories;
+using Oficina.Domain.Repositories;
 
 namespace Oficina.DAL.DependencyInjection;
 
@@ -10,6 +12,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddDal(this IServiceCollection services, string connectionString)
     {
         services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
+        services.AddScoped<IClienteRepositorio, ClienteRepositorio>();
 
         return services;
     }
