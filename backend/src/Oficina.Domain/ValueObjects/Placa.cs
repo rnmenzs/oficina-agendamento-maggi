@@ -17,6 +17,11 @@ public sealed record Placa
     {
         var texto = (entrada ?? string.Empty).Trim().ToUpperInvariant();
 
+        if (texto.Length == 0)
+        {
+            throw new DomainException("Placa é obrigatória.");
+        }
+
         if (FormatoAntigo.IsMatch(texto))
         {
             return new Placa(texto.Replace("-", string.Empty));

@@ -23,6 +23,14 @@ public class PlacaTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
+    public void Criar_recusa_placa_vazia(string? entrada)
+    {
+        var excecao = Assert.Throws<DomainException>(() => Placa.Criar(entrada));
+
+        Assert.Contains("obrigatória", excecao.Message);
+    }
+
+    [Theory]
     [InlineData("AB-1234")]
     [InlineData("ABCD-123")]
     [InlineData("ABC-12345")]
@@ -30,7 +38,7 @@ public class PlacaTests
     [InlineData("ABC1DE3")]
     [InlineData("1234ABC")]
     [InlineData("ABC 1234")]
-    public void Criar_recusa_formato_invalido(string? entrada)
+    public void Criar_recusa_formato_invalido(string entrada)
     {
         var excecao = Assert.Throws<DomainException>(() => Placa.Criar(entrada));
 
