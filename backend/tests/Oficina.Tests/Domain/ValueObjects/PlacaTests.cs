@@ -47,16 +47,6 @@ public class PlacaTests
         Assert.Contains("Placa inválida", excecao.Message);
     }
 
-    [Theory]
-    [InlineData("ABC1234", "ABC-1234")]
-    [InlineData("ABC1D23", "ABC1D23")]
-    public void Formatada_usa_hifen_apenas_no_formato_antigo(string entrada, string esperado)
-    {
-        var placa = Placa.Criar(entrada);
-
-        Assert.Equal(esperado, placa.Formatada);
-    }
-
     [Fact]
     public void Placas_com_o_mesmo_valor_sao_iguais()
     {

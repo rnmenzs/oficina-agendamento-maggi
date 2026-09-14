@@ -5,7 +5,8 @@ namespace Oficina.Domain.ValueObjects;
 
 public sealed record Placa
 {
-    // Guardada sem hífen e em maiúsculas (ABC1234 ou ABC1D23); o hífen do formato antigo é só exibição.
+    // Guardada sem hífen e em maiúsculas (ABC1234 ou ABC1D23), a mesma forma do CHECK no banco.
+    // Formatação para exibição é responsabilidade do frontend, por isso não há propriedade formatada aqui.
     public string Valor { get; }
 
     private Placa(string valor)
@@ -35,9 +36,7 @@ public sealed record Placa
         throw new DomainException("Placa inválida. Use o formato antigo (ABC-1234) ou Mercosul (ABC1D23).");
     }
 
-    public string Formatada => char.IsDigit(Valor[4]) ? $"{Valor[..3]}-{Valor[3..]}" : Valor;
-
-    public override string ToString() => Formatada;
+    public override string ToString() => Valor;
 
     private static readonly Regex FormatoAntigo = new("^[A-Z]{3}-?[0-9]{4}$", RegexOptions.Compiled);
     private static readonly Regex FormatoMercosul = new("^[A-Z]{3}[0-9][A-Z][0-9]{2}$", RegexOptions.Compiled);
