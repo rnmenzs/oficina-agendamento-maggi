@@ -138,6 +138,8 @@ Em construção.
 
 **Seed com datas relativas.** Os agendamentos iniciais são calculados a partir da próxima segunda-feira no momento da execução, então continuam válidos em qualquer data. A próxima segunda às 09:00 já tem três serviços simultâneos, o que permite testar a regra de capacidade na hora. Cada script roda numa transação: ou aplica tudo, ou nada.
 
+**Listagem de clientes sem paginação.** Uma oficina tem dezenas de clientes, não milhares, e a tela de clientes é usada para busca pontual. Paginação fica onde há volume e filtro combinado, que é a listagem de agendamentos. Se o cadastro crescer, a mudança é local: um parâmetro de página no repositório e `LIMIT`/`OFFSET` na consulta.
+
 **Swagger sempre habilitado e redirecionamento HTTPS só fora de desenvolvimento.** Local, a API roda em HTTP na porta 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS. O perfil `https` continua disponível com `dotnet run --launch-profile https`. Em produção, TLS normalmente termina num proxy reverso na frente da API.
 
 **Configuração via `.env`.** Mesmo sendo um projeto de teste público, credenciais e configurações ficam em variáveis de ambiente para seguir boas práticas. O `.env.example` versionado documenta todas as variáveis necessárias; o `.env` real fica no `.gitignore`.
