@@ -49,6 +49,7 @@ public sealed class AgendamentoServico
             _relogio.GetUtcNow()
         );
 
+        await GarantirQueOVeiculoEstaLivre(agendamento, cancellationToken);
         await GarantirQueCabeNaCapacidade(agendamento, cancellationToken);
 
         var salvo = await _agendamentos.AdicionarAsync(agendamento, cancellationToken);
@@ -151,9 +152,29 @@ public sealed class AgendamentoServico
         }
     }
 
-    // A sobreposição do mesmo veículo não é verificada aqui: quem garante é a constraint de exclusão,
-    // que o repositório traduz em conflito. Capacidade ainda tem corrida entre requisições
-    // simultâneas, e resolver isso exige lock no banco.
+    // Regra: o mesmo veículo não pode ter dois agendamentos sobrepostos. Entre esta consulta e a
+    // gravação ainda cabe outra requisição, e é a constraint de exclusão do banco que fecha essa
+    // janela. A checagem existe para a regra viver aqui, junto das outras, e recusar antes de gravar.
+    private async Task GarantirQueOVeiculoEstaLivre(
+        Agendamento agendamento,
+        CancellationToken cancellationToken
+    )
+    {
+        var ocupado = await _agendamentos.ExisteSobreposicaoDoVeiculoAsync(
+            agendamento.VeiculoId,
+            agendamento.Inicio,
+            agendamento.Fim,
+            cancellationToken
+        );
+
+        if (ocupado)
+        {
+            throw new ConflitoException("Este veículo já tem um agendamento nesse horário.");
+        }
+    }
+
+    // Capacidade tem a mesma corrida, e nela o banco não ajuda: não existe constraint declarativa
+    // para "no máximo três ao mesmo tempo". Resolver exigiria lock.
     private async Task GarantirQueCabeNaCapacidade(
         Agendamento agendamento,
         CancellationToken cancellationToken

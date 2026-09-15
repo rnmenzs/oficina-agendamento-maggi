@@ -120,9 +120,9 @@ public class AgendamentoServicoTests
     }
 
     [Fact]
-    public async Task CriarAsync_propaga_o_conflito_de_sobreposicao_do_mesmo_veiculo()
+    public async Task CriarAsync_recusa_o_mesmo_veiculo_em_horario_sobreposto()
     {
-        var (servico, veiculos, _) = Montar();
+        var (servico, veiculos, agendamentos) = Montar();
         await servico.CriarAsync(
             new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"),
             CancellationToken.None
@@ -136,6 +136,46 @@ public class AgendamentoServicoTests
         );
 
         Assert.Contains("já tem um agendamento", excecao.Message);
+        Assert.Single(agendamentos.Agendamentos);
+    }
+
+    [Fact]
+    public async Task CriarAsync_aceita_o_mesmo_veiculo_em_horarios_encostados()
+    {
+        var (servico, veiculos, _) = Montar();
+        var primeiro = await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+
+        var seguinte = await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[0].Id, primeiro.Fim, "TrocaOleo"),
+            CancellationToken.None
+        );
+
+        Assert.Equal(primeiro.Fim, seguinte.Inicio);
+    }
+
+    [Fact]
+    public async Task CriarAsync_libera_o_horario_do_veiculo_quando_o_anterior_e_cancelado()
+    {
+        var (servico, veiculos, _) = Montar();
+        var primeiro = await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+        await servico.AlterarStatusAsync(
+            primeiro.Id,
+            new AlterarStatusRequest("Cancelado"),
+            CancellationToken.None
+        );
+
+        var novo = await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+
+        Assert.Equal(NoveDaManha, novo.Inicio);
     }
 
     [Fact]
