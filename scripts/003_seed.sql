@@ -8,10 +8,11 @@ BEGIN;
 
 SET LOCAL TIME ZONE 'America/Sao_Paulo';
 
+-- Telefone só com dígitos, a mesma forma canônica que o value object Telefone grava.
 INSERT INTO clientes (nome, telefone, email) VALUES
-    ('Ana Souza',    '(11) 98888-0001', 'ana.souza@email.com'),
-    ('Bruno Lima',   '(11) 97777-0002', 'bruno.lima@email.com'),
-    ('Carla Mendes', '(21) 96666-0003', 'carla.mendes@email.com');
+    ('Ana Souza',    '11988880001', 'ana.souza@email.com'),
+    ('Bruno Lima',   '11977770002', 'bruno.lima@email.com'),
+    ('Carla Mendes', '21966660003', 'carla.mendes@email.com');
 
 INSERT INTO veiculos (cliente_id, placa, modelo, ano) VALUES
     ((SELECT id FROM clientes WHERE email = 'ana.souza@email.com'),    'ABC1234', 'Fiat Argo',         2021),

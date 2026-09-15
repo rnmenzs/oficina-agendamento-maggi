@@ -112,7 +112,7 @@ Em construção.
 
 **PostgreSQL.** Além de ser gratuito e simples de subir com Docker, tem `tstzrange` e constraints de exclusão, que garantem no próprio banco que um veículo não tenha dois agendamentos ativos sobrepostos, mesmo com requisições concorrentes.
 
-**Dapper em vez de ADO.NET puro.** O SQL continua cem por cento escrito à mão e parametrizado, como o enunciado pede. O Dapper só elimina o código repetitivo de abrir `DataReader` e ler coluna por coluna, o que reduz erros bobos de índice ou de tipo. Não é um ORM: não gera SQL nem rastreia entidades.
+**Dapper em vez de ADO.NET puro.** O SQL continua cem por cento escrito à mão e parametrizado. O Dapper só elimina o código repetitivo de abrir `DataReader` e ler coluna por coluna, o que reduz erros bobos de índice ou de tipo. Não é um ORM: não gera SQL nem rastreia entidades.
 
 **xUnit.** É o framework usado pelos templates oficiais do .NET e pelo próprio ASP.NET Core. `[Theory]` com `[InlineData]` encaixa bem nas regras de negócio, que são tabelas de casos (horário de funcionamento, transições de status).
 
@@ -123,6 +123,8 @@ Em construção.
 **Coluna `fim` gravada.** A duração é derivada do tipo de serviço no domínio, mas gravar o fim torna as consultas de capacidade e sobreposição uma comparação de intervalos simples e indexável (`inicio < :fim AND fim > :inicio`).
 
 **Datas em `timestamptz` e fuso fixo da oficina.** A API recebe e devolve datas em ISO 8601 com offset. As regras "não agendar no passado" e "cancelar até 2 horas antes" comparam instantes, sem fuso. A regra de horário de funcionamento converte o instante para o fuso da oficina (`America/Sao_Paulo`) antes de olhar dia da semana e hora.
+
+**Carimbos de tempo mantidos pelo banco.** As três tabelas têm `criado_em` e `atualizado_em`, ambos com `DEFAULT now()`. O padrão só vale no insert, então um gatilho move `atualizado_em` a cada `UPDATE`. A regra fica no banco em vez de repetida em cada comando da aplicação por dois motivos: vale também para escrita manual em SQL, e mantém todos os instantes sob o mesmo relógio, o do Postgres. A função do gatilho não cita tabela, então as três a reaproveitam e incluir uma nova custa uma linha. O efeito colateral aceito é que o carimbo avança em qualquer `UPDATE`, mesmo quando nenhum valor muda.
 
 **Placa normalizada.** Aceita `ABC-1234` ou `ABC1D23` na entrada (qualquer caixa) e grava em maiúsculas sem hífen, com `UNIQUE` e `CHECK` de formato no banco. A formatação para exibição fica no frontend.
 
@@ -137,6 +139,8 @@ Em construção.
 **Constraint de exclusão para sobreposição por veículo.** Protege a regra 4 contra concorrência sem nenhum código extra: se duas requisições passarem pela validação ao mesmo tempo, o banco recusa a segunda. A regra de capacidade (3 simultâneos) não cabe numa constraint declarativa e é tratada na camada BLL.
 
 **Seed com datas relativas.** Os agendamentos iniciais são calculados a partir da próxima segunda-feira no momento da execução, então continuam válidos em qualquer data. A próxima segunda às 09:00 já tem três serviços simultâneos, o que permite testar a regra de capacidade na hora. Cada script roda numa transação: ou aplica tudo, ou nada.
+
+**Listagem de clientes sem paginação.** Uma oficina tem dezenas de clientes, não milhares, e a tela de clientes é usada para busca pontual. Paginação fica onde há volume e filtro combinado, que é a listagem de agendamentos. Se o cadastro crescer, a mudança é local: um parâmetro de página no repositório e `LIMIT`/`OFFSET` na consulta.
 
 **Swagger sempre habilitado e redirecionamento HTTPS só fora de desenvolvimento.** Local, a API roda em HTTP na porta 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS. O perfil `https` continua disponível com `dotnet run --launch-profile https`. Em produção, TLS normalmente termina num proxy reverso na frente da API.
 

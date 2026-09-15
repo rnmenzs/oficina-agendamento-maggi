@@ -11,7 +11,7 @@ public enum TipoServico
 
 public static class TipoServicoExtensions
 {
-    // A duração é regra do enunciado, por isso mora no domínio. TimeSpan, e não minutos em int,
+    // A duração é regra de negócio, por isso mora no domínio. TimeSpan, e não minutos em int,
     // para o fim do agendamento ser simplesmente inicio + Duracao().
     public static TimeSpan Duracao(this TipoServico tipo) => tipo switch
     {

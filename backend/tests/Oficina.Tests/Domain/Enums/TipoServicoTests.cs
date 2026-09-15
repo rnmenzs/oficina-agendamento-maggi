@@ -8,7 +8,7 @@ public class TipoServicoTests
     [InlineData(TipoServico.TrocaOleo, 30)]
     [InlineData(TipoServico.Revisao, 60)]
     [InlineData(TipoServico.Diagnostico, 90)]
-    public void Duracao_segue_a_tabela_do_enunciado(TipoServico tipo, int minutos)
+    public void Duracao_segue_a_tabela_de_servicos(TipoServico tipo, int minutos)
     {
         Assert.Equal(TimeSpan.FromMinutes(minutos), tipo.Duracao());
     }
