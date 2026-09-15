@@ -28,8 +28,9 @@ public sealed class VeiculosController : ControllerBase
     {
         var veiculo = await _servico.CriarAsync(clienteId, request, cancellationToken);
 
-        // Aponta para a coleção do cliente, já que não existe endpoint de veículo por id.
-        return CreatedAtAction(nameof(ListarPorCliente), new { clienteId }, veiculo);
+        // 201 sem Location: o cabeçalho deve apontar para o recurso criado, e não existe
+        // endpoint de veículo por id. Apontar para a coleção seria mentir sobre o que foi criado.
+        return StatusCode(StatusCodes.Status201Created, veiculo);
     }
 
     [HttpGet("api/clientes/{clienteId:guid}/veiculos")]
