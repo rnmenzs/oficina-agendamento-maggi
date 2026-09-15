@@ -7,32 +7,33 @@ using Oficina.Domain.Repositories;
 
 namespace Oficina.DAL.Repositories;
 
-public sealed class ClienteRepositorio : IClienteRepositorio
+public sealed class VeiculoRepositorio : IVeiculoRepositorio
 {
     // Apelidos no próprio SQL em vez de ligar o casamento por sublinhado do Dapper,
     // que é estado global e afetaria todas as consultas do processo.
     private const string Colunas = """
         id            AS Id,
-        nome          AS Nome,
-        telefone      AS Telefone,
-        email         AS Email,
+        cliente_id    AS ClienteId,
+        placa         AS Placa,
+        modelo        AS Modelo,
+        ano           AS Ano,
         criado_em     AS CriadoEm,
         atualizado_em AS AtualizadoEm
         """;
 
     private readonly NpgsqlDataSource _fonteDeDados;
 
-    public ClienteRepositorio(NpgsqlDataSource fonteDeDados)
+    public VeiculoRepositorio(NpgsqlDataSource fonteDeDados)
     {
         _fonteDeDados = fonteDeDados;
     }
 
-    public async Task<Cliente> AdicionarAsync(Cliente cliente, CancellationToken cancellationToken)
+    public async Task<Veiculo> AdicionarAsync(Veiculo veiculo, CancellationToken cancellationToken)
     {
         // O id vem do domínio; os carimbos vêm do banco e voltam pelo RETURNING.
         const string sql = """
-            INSERT INTO clientes (id, nome, telefone, email)
-            VALUES (@Id, @Nome, @Telefone, @Email)
+            INSERT INTO veiculos (id, cliente_id, placa, modelo, ano)
+            VALUES (@Id, @ClienteId, @Placa, @Modelo, @Ano)
             RETURNING criado_em AS CriadoEm, atualizado_em AS AtualizadoEm
             """;
 
@@ -44,19 +45,22 @@ public sealed class ClienteRepositorio : IClienteRepositorio
                 sql,
                 new
                 {
-                    cliente.Id,
-                    cliente.Nome,
-                    Telefone = cliente.Telefone.Valor,
-                    Email = cliente.Email.Valor
+                    veiculo.Id,
+                    veiculo.ClienteId,
+                    // Nomeado porque o objeto anônimo geraria a propriedade "Valor", e o SQL pede @Placa.
+                    Placa = veiculo.Placa.Valor,
+                    veiculo.Modelo,
+                    veiculo.Ano
                 },
                 cancellationToken: cancellationToken
             ));
 
-            return Cliente.Reconstituir(
-                cliente.Id,
-                cliente.Nome,
-                cliente.Telefone.Valor,
-                cliente.Email.Valor,
+            return Veiculo.Reconstituir(
+                veiculo.Id,
+                veiculo.ClienteId,
+                veiculo.Placa.Valor,
+                veiculo.Modelo,
+                veiculo.Ano,
                 Datas.EmUtc(carimbos.CriadoEm),
                 Datas.EmUtc(carimbos.AtualizadoEm)
             );
@@ -65,24 +69,24 @@ public sealed class ClienteRepositorio : IClienteRepositorio
         // A chave primária levanta o mesmo código, por isso a restrição é conferida pelo nome.
         catch (PostgresException excecao)
             when (excecao.SqlState == PostgresErrorCodes.UniqueViolation
-                && excecao.ConstraintName == "uq_clientes_email")
+                && excecao.ConstraintName == "uq_veiculos_placa")
         {
-            throw new ConflitoException("Já existe um cliente com este e-mail.");
+            throw new ConflitoException("Já existe um veículo com esta placa.");
         }
     }
 
-    public async Task<Cliente?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Veiculo?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken)
     {
         const string sql = $"""
             SELECT
             {Colunas}
-            FROM clientes
+            FROM veiculos
             WHERE id = @Id
             """;
 
         await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);
 
-        var linha = await conexao.QuerySingleOrDefaultAsync<ClienteLinha>(new CommandDefinition(
+        var linha = await conexao.QuerySingleOrDefaultAsync<VeiculoLinha>(new CommandDefinition(
             sql,
             new { Id = id },
             cancellationToken: cancellationToken
@@ -91,18 +95,19 @@ public sealed class ClienteRepositorio : IClienteRepositorio
         return linha is null ? null : Montar(linha);
     }
 
-    public async Task<IReadOnlyList<Cliente>> ListarAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Veiculo>> ListarAsync(CancellationToken cancellationToken)
     {
+        // Ordenado por placa por ser única: garante ordem estável entre chamadas.
         const string sql = $"""
             SELECT
             {Colunas}
-            FROM clientes
-            ORDER BY nome
+            FROM veiculos
+            ORDER BY placa
             """;
 
         await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);
 
-        var linhas = await conexao.QueryAsync<ClienteLinha>(new CommandDefinition(
+        var linhas = await conexao.QueryAsync<VeiculoLinha>(new CommandDefinition(
             sql,
             cancellationToken: cancellationToken
         ));
@@ -110,23 +115,49 @@ public sealed class ClienteRepositorio : IClienteRepositorio
         return linhas.Select(Montar).ToList();
     }
 
-    private static Cliente Montar(ClienteLinha linha)
+    public async Task<IReadOnlyList<Veiculo>> ListarPorClienteAsync(
+        Guid clienteId,
+        CancellationToken cancellationToken
+    )
     {
-        return Cliente.Reconstituir(
+        const string sql = $"""
+            SELECT
+            {Colunas}
+            FROM veiculos
+            WHERE cliente_id = @ClienteId
+            ORDER BY placa
+            """;
+
+        await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);
+
+        var linhas = await conexao.QueryAsync<VeiculoLinha>(new CommandDefinition(
+            sql,
+            new { ClienteId = clienteId },
+            cancellationToken: cancellationToken
+        ));
+
+        return linhas.Select(Montar).ToList();
+    }
+
+    private static Veiculo Montar(VeiculoLinha linha)
+    {
+        return Veiculo.Reconstituir(
             linha.Id,
-            linha.Nome,
-            linha.Telefone,
-            linha.Email,
+            linha.ClienteId,
+            linha.Placa,
+            linha.Modelo,
+            linha.Ano,
             Datas.EmUtc(linha.CriadoEm),
             Datas.EmUtc(linha.AtualizadoEm)
         );
     }
 
-    private sealed record ClienteLinha(
+    private sealed record VeiculoLinha(
         Guid Id,
-        string Nome,
-        string Telefone,
-        string Email,
+        Guid ClienteId,
+        string Placa,
+        string Modelo,
+        int Ano,
         DateTime CriadoEm,
         DateTime AtualizadoEm
     );

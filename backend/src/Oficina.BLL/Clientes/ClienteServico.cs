@@ -1,4 +1,5 @@
 using Oficina.Domain.Entities;
+using Oficina.Domain.Exceptions;
 using Oficina.Domain.Repositories;
 using Oficina.DTO.Clientes;
 
@@ -33,11 +34,18 @@ public sealed class ClienteServico
         return clientes.Select(Mapear).ToList();
     }
 
-    public async Task<ClienteResponse?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<ClienteResponse> ObterPorIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var cliente = await _repositorio.ObterPorIdAsync(id, cancellationToken);
 
-        return cliente is null ? null : Mapear(cliente);
+        // O repositório devolve nulo porque não achar é resultado possível da consulta.
+        // Transformar isso em erro de negócio é decisão desta camada, não da de dados.
+        if (cliente is null)
+        {
+            throw new NaoEncontradoException("Cliente não encontrado.");
+        }
+
+        return Mapear(cliente);
     }
 
     // Os carimbos só são nulos antes de gravar, e todo cliente que chega aqui já veio do banco.

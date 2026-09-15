@@ -21,10 +21,14 @@ public sealed class ExceptionHandlingMiddleware
         {
             await _proximo(contexto);
         }
-        // ConflitoException herda de DomainException, então tem de ser capturada antes.
+        // ConflitoException e NaoEncontradoException herdam de DomainException, então vêm antes.
         catch (ConflitoException excecao)
         {
             await Responder(contexto, StatusCodes.Status409Conflict, "Conflito", excecao.Message);
+        }
+        catch (NaoEncontradoException excecao)
+        {
+            await Responder(contexto, StatusCodes.Status404NotFound, "Não encontrado", excecao.Message);
         }
         catch (DomainException excecao)
         {

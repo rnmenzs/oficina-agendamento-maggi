@@ -85,13 +85,15 @@ public class ClienteServicoTests
     }
 
     [Fact]
-    public async Task ObterPorIdAsync_devolve_nulo_quando_nao_existe()
+    public async Task ObterPorIdAsync_recusa_cliente_inexistente()
     {
         var servico = new ClienteServico(new RepositorioFalso());
 
-        var response = await servico.ObterPorIdAsync(Guid.NewGuid(), CancellationToken.None);
+        var excecao = await Assert.ThrowsAsync<NaoEncontradoException>(
+            () => servico.ObterPorIdAsync(Guid.NewGuid(), CancellationToken.None)
+        );
 
-        Assert.Null(response);
+        Assert.Contains("Cliente não encontrado", excecao.Message);
     }
 
     [Fact]
@@ -105,8 +107,7 @@ public class ClienteServicoTests
 
         var response = await servico.ObterPorIdAsync(criado.Id, CancellationToken.None);
 
-        Assert.NotNull(response);
-        Assert.Equal(criado.Id, response!.Id);
+        Assert.Equal(criado.Id, response.Id);
         Assert.Equal("Ana", response.Nome);
     }
 

@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
         services.AddScoped<IClienteRepositorio, ClienteRepositorio>();
+        services.AddScoped<IVeiculoRepositorio, VeiculoRepositorio>();
 
         return services;
     }

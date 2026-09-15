@@ -1,5 +1,6 @@
 using Oficina.Api.Middleware;
 using Oficina.BLL.Clientes;
+using Oficina.BLL.Veiculos;
 using Oficina.DAL.DependencyInjection;
 
 const string FrontendCorsPolicy = "Frontend";
@@ -19,7 +20,10 @@ var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
 builder.Configuration["ConnectionStrings:OficinaDb"] = connectionString;
 
 builder.Services.AddDal(connectionString);
+// Relógio como dependência: entidades e serviços recebem o instante em vez de lerem sozinhos.
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ClienteServico>();
+builder.Services.AddScoped<VeiculoServico>();
 
 // Se CORS_ORIGINS estiver definida, sobrescreve as origens do appsettings.
 var corsOriginsOverride = Environment.GetEnvironmentVariable("CORS_ORIGINS");
