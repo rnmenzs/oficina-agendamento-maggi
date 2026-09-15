@@ -1,3 +1,5 @@
+using Oficina.Api.Middleware;
+using Oficina.BLL.Clientes;
 using Oficina.DAL.DependencyInjection;
 
 const string FrontendCorsPolicy = "Frontend";
@@ -17,6 +19,7 @@ var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
 builder.Configuration["ConnectionStrings:OficinaDb"] = connectionString;
 
 builder.Services.AddDal(connectionString);
+builder.Services.AddScoped<ClienteServico>();
 
 // Se CORS_ORIGINS estiver definida, sobrescreve as origens do appsettings.
 var corsOriginsOverride = Environment.GetEnvironmentVariable("CORS_ORIGINS");
@@ -44,6 +47,9 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()));
 
 var app = builder.Build();
+
+// Primeiro do pipeline: só assim ele enxerga as exceções de tudo que vem depois.
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Swagger ligado em todos os ambientes para facilitar a avaliação da API.
 app.UseSwagger();
