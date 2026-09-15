@@ -301,6 +301,31 @@ public class AgendamentoServicoTests
     }
 
     [Fact]
+    public async Task AlterarStatusAsync_recusa_quando_outra_requisicao_muda_o_status_antes()
+    {
+        var (servico, veiculos, agendamentos) = Montar();
+        var criado = await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+
+        // Entre a leitura e a gravação, outra requisição cancela o agendamento.
+        agendamentos.QuandoForGravar = () =>
+            agendamentos.TrocarStatusPorFora(criado.Id, StatusAgendamento.Cancelado);
+
+        var excecao = await Assert.ThrowsAsync<ConflitoException>(
+            () => servico.AlterarStatusAsync(
+                criado.Id,
+                new AlterarStatusRequest("EmAndamento"),
+                CancellationToken.None
+            )
+        );
+
+        Assert.Contains("mudou enquanto", excecao.Message);
+        Assert.Equal(StatusAgendamento.Cancelado, agendamentos.Agendamentos[0].Status);
+    }
+
+    [Fact]
     public async Task ListarAsync_pagina_e_calcula_o_total_de_paginas()
     {
         var (servico, veiculos, _) = Montar();
@@ -504,16 +529,48 @@ public class AgendamentoServicoTests
             return Task.FromResult(encontrado is null ? null : Detalhado(Gravar(encontrado)));
         }
 
+        // Chamado no começo da gravação, para o teste encenar outra requisição chegando no meio.
+        public Action? QuandoForGravar { get; set; }
+
         public Task<AgendamentoNaAgenda> AtualizarStatusAsync(
             Agendamento agendamento,
+            StatusAgendamento statusAnterior,
             CancellationToken cancellationToken
         )
         {
+            QuandoForGravar?.Invoke();
+
             var indice = Agendamentos.FindIndex(a => a.Id == agendamento.Id);
+
+            if (indice < 0 || Agendamentos[indice].Status != statusAnterior)
+            {
+                throw new ConflitoException(
+                    "O status do agendamento mudou enquanto esta alteração era processada."
+                );
+            }
+
             var salvo = Gravar(agendamento);
             Agendamentos[indice] = salvo;
 
             return Task.FromResult(NaAgenda(salvo));
+        }
+
+        // Só para o teste encenar a outra requisição: troca o status guardado sem passar pelo serviço.
+        public void TrocarStatusPorFora(Guid id, StatusAgendamento status)
+        {
+            var indice = Agendamentos.FindIndex(a => a.Id == id);
+            var atual = Agendamentos[indice];
+
+            Agendamentos[indice] = Agendamento.Reconstituir(
+                atual.Id,
+                atual.VeiculoId,
+                atual.Inicio,
+                atual.Fim,
+                atual.TipoServico,
+                status,
+                Carimbo,
+                Carimbo
+            );
         }
 
         public Task<bool> ExisteSobreposicaoDoVeiculoAsync(

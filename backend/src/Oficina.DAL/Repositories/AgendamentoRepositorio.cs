@@ -127,15 +127,19 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
 
     public async Task<AgendamentoNaAgenda> AtualizarStatusAsync(
         Agendamento agendamento,
+        StatusAgendamento statusAnterior,
         CancellationToken cancellationToken
     )
     {
         // atualizado_em não aparece no SET: o gatilho do banco cuida dele em todo UPDATE.
+        // O status anterior entra no WHERE: se outra requisição já mudou o status desde a leitura,
+        // nenhuma linha é atualizada e esta gravação não apaga a que chegou antes.
         const string sql = $"""
             WITH alterado AS (
                 UPDATE agendamentos
                 SET status = @Status
                 WHERE id = @Id
+                  AND status = @StatusAnterior
                 RETURNING *
             )
             SELECT
@@ -146,11 +150,23 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
 
         await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);
 
-        var linha = await conexao.QuerySingleAsync<AgendaLinha>(new CommandDefinition(
+        var linha = await conexao.QuerySingleOrDefaultAsync<AgendaLinha>(new CommandDefinition(
             sql,
-            new { agendamento.Id, Status = agendamento.Status.ToString() },
+            new
+            {
+                agendamento.Id,
+                Status = agendamento.Status.ToString(),
+                StatusAnterior = statusAnterior.ToString()
+            },
             cancellationToken: cancellationToken
         ));
+
+        if (linha is null)
+        {
+            throw new ConflitoException(
+                "O status do agendamento mudou enquanto esta alteração era processada."
+            );
+        }
 
         return MontarAgenda(linha);
     }

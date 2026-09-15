@@ -89,6 +89,9 @@ public sealed class AgendamentoServico
 
         var agendamento = detalhe.Agendamento;
 
+        // Guardado antes da transição: é ele que o banco vai conferir na hora de gravar.
+        var statusLido = agendamento.Status;
+
         // O status pedido escolhe a transição; quem recusa a que não faz sentido é a entidade,
         // que conhece o status atual. Voltar para Agendado não existe, então nem chega nela.
         switch (novoStatus)
@@ -106,7 +109,7 @@ public sealed class AgendamentoServico
                 throw new DomainException("Não é possível voltar um agendamento para Agendado.");
         }
 
-        var salvo = await _agendamentos.AtualizarStatusAsync(agendamento, cancellationToken);
+        var salvo = await _agendamentos.AtualizarStatusAsync(agendamento, statusLido, cancellationToken);
 
         return Mapear(salvo);
     }

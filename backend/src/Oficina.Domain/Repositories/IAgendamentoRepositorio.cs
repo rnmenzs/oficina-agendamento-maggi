@@ -13,8 +13,11 @@ public interface IAgendamentoRepositorio
     Task<AgendamentoDetalhado?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken);
 
     // Só o status muda depois de criado, então não existe um atualizar genérico.
+    // O status anterior vai junto porque a gravação só vale se ele ainda for o que estava no banco:
+    // entre ler e gravar cabe outra requisição, e sem essa condição a segunda apagaria a primeira.
     Task<AgendamentoNaAgenda> AtualizarStatusAsync(
         Agendamento agendamento,
+        StatusAgendamento statusAnterior,
         CancellationToken cancellationToken
     );
 
