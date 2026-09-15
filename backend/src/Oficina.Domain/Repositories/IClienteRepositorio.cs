@@ -5,7 +5,7 @@ namespace Oficina.Domain.Repositories;
 public interface IClienteRepositorio
 {
     // O cliente que entra tem CriadoEm e AtualizadoEm nulos; o que volta traz os carimbos que o banco gerou.
-    // A unicidade do e-mail é do banco: a violação da constraint sobe para a BLL traduzir em conflito.
+    // A unicidade do e-mail é do banco: quem implementa traduz a violação em ConflitoException.
     Task<Cliente> AdicionarAsync(Cliente cliente, CancellationToken cancellationToken);
 
     // Não encontrar é resultado possível da consulta, não caso excepcional: por isso não lança.
