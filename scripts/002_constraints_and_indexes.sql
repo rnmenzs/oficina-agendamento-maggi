@@ -51,7 +51,7 @@ ALTER TABLE agendamentos ADD CONSTRAINT ex_agendamentos_veiculo_sobreposicao
 -- data de criação depois de qualquer alteração. No banco, e não em cada UPDATE, para valer
 -- também para escrita manual e manter o instante sob o relógio do Postgres.
 -- A função é genérica: qualquer tabela com a coluna atualizado_em reaproveita o mesmo gatilho.
-CREATE FUNCTION set_atualizado_em() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION set_atualizado_em() RETURNS trigger AS $$
 BEGIN
     NEW.atualizado_em := now();
     RETURN NEW;
