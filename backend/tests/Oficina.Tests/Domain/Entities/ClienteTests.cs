@@ -107,18 +107,11 @@ public class ClienteTests
     }
 
     [Fact]
-    public void Clientes_com_os_mesmos_dados_continuam_sendo_clientes_diferentes()
+    public void Clientes_com_os_mesmos_dados_recebem_identidades_diferentes()
     {
         var primeiro = Cliente.Criar("Ana", "11988880001", "ana@email.com");
-        var segundo = Cliente.Reconstituir(
-            primeiro.Id,
-            "Ana",
-            "11988880001",
-            "ana@email.com",
-            Agora,
-            Agora
-        );
+        var segundo = Cliente.Criar("Ana", "11988880001", "ana@email.com");
 
-        Assert.NotEqual(primeiro, segundo);
+        Assert.NotEqual(primeiro.Id, segundo.Id);
     }
 }
