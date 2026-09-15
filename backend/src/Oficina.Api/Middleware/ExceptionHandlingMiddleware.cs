@@ -29,6 +29,16 @@ public sealed class ExceptionHandlingMiddleware
         {
             await Responder(contexto, StatusCodes.Status400BadRequest, "Dados inválidos", excecao.Message);
         }
+        // Cliente abortou a requisição: a conexão já morreu, então não há resposta a escrever
+        // nem erro a registrar. Sem isso, cada aba fechada viraria um 500 falso nas métricas.
+        catch (OperationCanceledException) when (contexto.RequestAborted.IsCancellationRequested)
+        {
+            _log.LogDebug(
+                "Requisição cancelada pelo cliente em {Metodo} {Caminho}",
+                contexto.Request.Method,
+                contexto.Request.Path
+            );
+        }
         catch (Exception excecao)
         {
             _log.LogError(
