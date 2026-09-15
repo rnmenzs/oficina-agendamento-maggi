@@ -6,13 +6,14 @@ namespace Oficina.Tests.Domain.Entities;
 public class VeiculoTests
 {
     private static readonly DateTimeOffset Agora = new(2026, 9, 15, 12, 0, 0, TimeSpan.FromHours(-3));
+    private const int AnoAtual = 2026;
 
     [Fact]
     public void Criar_monta_veiculo_com_os_valores_normalizados()
     {
         var clienteId = Guid.CreateVersion7();
 
-        var veiculo = Veiculo.Criar(clienteId, "  abc-1234 ", "  Fiat Argo  ", 2021);
+        var veiculo = Veiculo.Criar(clienteId, "  abc-1234 ", "  Fiat Argo  ", 2021, Agora);
 
         Assert.Equal(clienteId, veiculo.ClienteId);
         Assert.Equal("ABC1234", veiculo.Placa.Valor);
@@ -23,8 +24,8 @@ public class VeiculoTests
     [Fact]
     public void Criar_gera_id_proprio_na_versao_7()
     {
-        var primeiro = Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", 2021);
-        var segundo = Veiculo.Criar(Guid.CreateVersion7(), "DEF5678", "Fiat Argo", 2021);
+        var primeiro = Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", 2021, Agora);
+        var segundo = Veiculo.Criar(Guid.CreateVersion7(), "DEF5678", "Fiat Argo", 2021, Agora);
 
         Assert.NotEqual(Guid.Empty, primeiro.Id);
         Assert.NotEqual(primeiro.Id, segundo.Id);
@@ -36,7 +37,7 @@ public class VeiculoTests
     public void Criar_recusa_cliente_vazio()
     {
         var excecao = Assert.Throws<DomainException>(
-            () => Veiculo.Criar(Guid.Empty, "ABC1234", "Fiat Argo", 2021)
+            () => Veiculo.Criar(Guid.Empty, "ABC1234", "Fiat Argo", 2021, Agora)
         );
 
         Assert.Contains("Cliente é obrigatório", excecao.Message);
@@ -49,7 +50,7 @@ public class VeiculoTests
     public void Criar_recusa_modelo_vazio(string? modelo)
     {
         var excecao = Assert.Throws<DomainException>(
-            () => Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", modelo, 2021)
+            () => Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", modelo, 2021, Agora)
         );
 
         Assert.Contains("Modelo é obrigatório", excecao.Message);
@@ -61,7 +62,7 @@ public class VeiculoTests
         var modelo = new string('a', 101);
 
         var excecao = Assert.Throws<DomainException>(
-            () => Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", modelo, 2021)
+            () => Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", modelo, 2021, Agora)
         );
 
         Assert.Contains("100", excecao.Message);
@@ -71,33 +72,29 @@ public class VeiculoTests
     public void Criar_propaga_a_validacao_da_placa()
     {
         var excecao = Assert.Throws<DomainException>(
-            () => Veiculo.Criar(Guid.CreateVersion7(), "AB-1234", "Fiat Argo", 2021)
+            () => Veiculo.Criar(Guid.CreateVersion7(), "AB-1234", "Fiat Argo", 2021, Agora)
         );
 
         Assert.Contains("Placa inválida", excecao.Message);
     }
 
     [Fact]
-    public void Criar_aceita_o_ano_seguinte_ao_atual()
+    public void Criar_aceita_o_ano_seguinte_ao_do_instante_informado()
     {
         // A indústria vende o modelo do ano que vem, então esse é o teto.
-        var anoSeguinte = DateTime.UtcNow.Year + 1;
+        var veiculo = Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", AnoAtual + 1, Agora);
 
-        var veiculo = Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", anoSeguinte);
-
-        Assert.Equal(anoSeguinte, veiculo.Ano);
+        Assert.Equal(AnoAtual + 1, veiculo.Ano);
     }
 
     [Fact]
-    public void Criar_recusa_ano_acima_do_seguinte_ao_atual()
+    public void Criar_recusa_ano_dois_a_frente_do_instante_informado()
     {
-        var doisAnosAFrente = DateTime.UtcNow.Year + 2;
-
         var excecao = Assert.Throws<DomainException>(
-            () => Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", doisAnosAFrente)
+            () => Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", AnoAtual + 2, Agora)
         );
 
-        Assert.Contains("Ano deve estar entre", excecao.Message);
+        Assert.Contains($"1900 e {AnoAtual + 1}", excecao.Message);
     }
 
     [Theory]
@@ -107,7 +104,7 @@ public class VeiculoTests
     public void Criar_recusa_ano_abaixo_do_minimo(int ano)
     {
         var excecao = Assert.Throws<DomainException>(
-            () => Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", ano)
+            () => Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", ano, Agora)
         );
 
         Assert.Contains("1900", excecao.Message);
@@ -116,7 +113,7 @@ public class VeiculoTests
     [Fact]
     public void Criar_deixa_os_carimbos_nulos_porque_quem_define_e_o_banco()
     {
-        var veiculo = Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", 2021);
+        var veiculo = Veiculo.Criar(Guid.CreateVersion7(), "ABC1234", "Fiat Argo", 2021, Agora);
 
         Assert.Null(veiculo.CriadoEm);
         Assert.Null(veiculo.AtualizadoEm);
@@ -159,12 +156,29 @@ public class VeiculoTests
     }
 
     [Fact]
+    public void Reconstituir_aceita_ano_que_a_criacao_recusaria()
+    {
+        // O banco é a fonte: regra de criação mais rígida não pode impedir a leitura de linha antiga.
+        var veiculo = Veiculo.Reconstituir(
+            Guid.CreateVersion7(),
+            Guid.CreateVersion7(),
+            "ABC1234",
+            "Fiat Argo",
+            2090,
+            Agora,
+            Agora
+        );
+
+        Assert.Equal(2090, veiculo.Ano);
+    }
+
+    [Fact]
     public void Veiculos_com_os_mesmos_dados_recebem_identidades_diferentes()
     {
         var clienteId = Guid.CreateVersion7();
 
-        var primeiro = Veiculo.Criar(clienteId, "ABC1234", "Fiat Argo", 2021);
-        var segundo = Veiculo.Criar(clienteId, "ABC1234", "Fiat Argo", 2021);
+        var primeiro = Veiculo.Criar(clienteId, "ABC1234", "Fiat Argo", 2021, Agora);
+        var segundo = Veiculo.Criar(clienteId, "ABC1234", "Fiat Argo", 2021, Agora);
 
         Assert.NotEqual(primeiro.Id, segundo.Id);
     }

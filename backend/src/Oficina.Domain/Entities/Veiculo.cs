@@ -10,9 +10,6 @@ public sealed class Veiculo
 
     private const int AnoMinimo = 1900;
 
-    // Propriedade, não campo: com "=" o valor congelaria na carga da classe.
-    private static int AnoMaximo { get { return DateTime.UtcNow.Year + 1; } }
-
     public Guid Id { get; }
 
     // Id, e não a entidade Cliente: agregados se referenciam por identificador.
@@ -46,20 +43,30 @@ public sealed class Veiculo
     }
 
     // Veículo novo: o id nasce aqui, não no banco. Guid v7 é ordenado por tempo e não fragmenta o índice.
-    public static Veiculo Criar(Guid clienteId, string? placa, string? modelo, int ano)
+    // O instante vem de fora porque o teto do ano depende dele: assim o teste fixa o cenário
+    // em vez de depender de quando roda, e a entidade não esconde uma leitura do relógio.
+    public static Veiculo Criar(
+        Guid clienteId,
+        string? placa,
+        string? modelo,
+        int ano,
+        DateTimeOffset agora
+    )
     {
         return new Veiculo(
             Guid.CreateVersion7(),
             ValidarClienteId(clienteId),
             Placa.Criar(placa),
             ValidarModelo(modelo),
-            ValidarAno(ano),
+            // Ano seguinte ao atual: a indústria vende 2026 com modelo 2027.
+            ValidarAno(ano, agora.Year + 1),
             criadoEm: null,
             atualizadoEm: null
         );
     }
 
-    // Em UTC porque as colunas são timestamptz e o Npgsql trabalha com offset zero.
+    // Sem revalidar: o banco é a fonte e já tem as restrições. Se a regra de criação apertar,
+    // linha antiga e válida na época continuaria legível. Em UTC porque a coluna é timestamptz.
     public static Veiculo Reconstituir(
         Guid id,
         Guid clienteId,
@@ -72,10 +79,10 @@ public sealed class Veiculo
     {
         return new Veiculo(
             id,
-            ValidarClienteId(clienteId),
+            clienteId,
             Placa.Criar(placa),
-            ValidarModelo(modelo),
-            ValidarAno(ano),
+            modelo,
+            ano,
             criadoEm.ToUniversalTime(),
             atualizadoEm.ToUniversalTime()
         );
@@ -108,11 +115,11 @@ public sealed class Veiculo
         return texto;
     }
 
-    private static int ValidarAno(int ano)
+    private static int ValidarAno(int ano, int anoMaximo)
     {
-        if (ano < AnoMinimo || ano > AnoMaximo)
+        if (ano < AnoMinimo || ano > anoMaximo)
         {
-            throw new DomainException($"Ano deve estar entre {AnoMinimo} e {AnoMaximo}.");
+            throw new DomainException($"Ano deve estar entre {AnoMinimo} e {anoMaximo}.");
         }
 
         return ano;

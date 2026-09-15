@@ -145,7 +145,13 @@ public class VeiculoServicoTests
 
         var veiculos = new VeiculoRepositorioFalso();
 
-        return (new VeiculoServico(veiculos, clientes), dono, veiculos, clientes);
+        return (new VeiculoServico(veiculos, clientes, new RelogioFalso()), dono, veiculos, clientes);
+    }
+
+    // Relógio fixo: o teste diz em que instante o cenário acontece, em vez de depender de quando roda.
+    private sealed class RelogioFalso : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => Carimbo;
     }
 
     private sealed class VeiculoRepositorioFalso : IVeiculoRepositorio

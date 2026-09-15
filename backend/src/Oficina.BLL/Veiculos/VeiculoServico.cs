@@ -9,11 +9,13 @@ public sealed class VeiculoServico
 {
     private readonly IVeiculoRepositorio _veiculos;
     private readonly IClienteRepositorio _clientes;
+    private readonly TimeProvider _relogio;
 
-    public VeiculoServico(IVeiculoRepositorio veiculos, IClienteRepositorio clientes)
+    public VeiculoServico(IVeiculoRepositorio veiculos, IClienteRepositorio clientes, TimeProvider relogio)
     {
         _veiculos = veiculos;
         _clientes = clientes;
+        _relogio = relogio;
     }
 
     public async Task<VeiculoResponse> CriarAsync(
@@ -26,7 +28,13 @@ public sealed class VeiculoServico
         // e o 404 do cliente inexistente deve ganhar do 400 de dado inválido.
         await GarantirQueOClienteExiste(clienteId, cancellationToken);
 
-        var veiculo = Veiculo.Criar(clienteId, request.Placa, request.Modelo, request.Ano);
+        var veiculo = Veiculo.Criar(
+            clienteId,
+            request.Placa,
+            request.Modelo,
+            request.Ano,
+            _relogio.GetUtcNow()
+        );
 
         var salvo = await _veiculos.AdicionarAsync(veiculo, cancellationToken);
 
