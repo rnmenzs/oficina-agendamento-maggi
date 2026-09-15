@@ -11,6 +11,9 @@ public sealed class ClienteRepositorio : IClienteRepositorio
     // Código do Postgres para violação de restrição de unicidade.
     private const string ViolacaoDeUnicidade = "23505";
 
+    // A chave primária levanta o mesmo código, por isso a restrição é conferida pelo nome.
+    private const string RestricaoEmailUnico = "uq_clientes_email";
+
     // Apelidos no próprio SQL em vez de ligar o casamento por sublinhado do Dapper,
     // que é estado global e afetaria todas as consultas do processo.
     private const string Colunas = """
@@ -64,7 +67,8 @@ public sealed class ClienteRepositorio : IClienteRepositorio
             );
         }
         // Traduz aqui porque a BLL não pode depender do Npgsql para reconhecer o erro.
-        catch (PostgresException excecao) when (excecao.SqlState == ViolacaoDeUnicidade)
+        catch (PostgresException excecao)
+            when (excecao.SqlState == ViolacaoDeUnicidade && excecao.ConstraintName == RestricaoEmailUnico)
         {
             throw new ConflitoException("Já existe um cliente com este e-mail.");
         }
