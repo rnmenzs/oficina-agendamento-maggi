@@ -26,6 +26,16 @@ public interface IAgendamentoRepositorio
         CancellationToken cancellationToken
     );
 
+    // Para a regra de sobreposição por veículo, com o mesmo critério de status ativo.
+    // A constraint de exclusão do banco continua sendo a garantia sob concorrência; esta consulta
+    // existe para a regra viver na camada de regras e recusar antes de tentar gravar.
+    Task<bool> ExisteSobreposicaoDoVeiculoAsync(
+        Guid veiculoId,
+        DateTimeOffset inicio,
+        DateTimeOffset fim,
+        CancellationToken cancellationToken
+    );
+
     // Filtro e paginação no SQL, nunca em memória.
     Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
         DateOnly? data,

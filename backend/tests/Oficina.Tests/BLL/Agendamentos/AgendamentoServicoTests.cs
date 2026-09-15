@@ -476,6 +476,18 @@ public class AgendamentoServicoTests
             return Task.FromResult(NaAgenda(salvo));
         }
 
+        public Task<bool> ExisteSobreposicaoDoVeiculoAsync(
+            Guid veiculoId,
+            DateTimeOffset inicio,
+            DateTimeOffset fim,
+            CancellationToken cancellationToken
+        )
+        {
+            return Task.FromResult(Agendamentos.Any(a =>
+                a.VeiculoId == veiculoId && Ativo(a) && Cruza(a, inicio, fim)
+            ));
+        }
+
         public Task<int> ContarAtivosNoPeriodoAsync(
             DateTimeOffset inicio,
             DateTimeOffset fim,

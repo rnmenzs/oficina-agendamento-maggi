@@ -177,6 +177,38 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         ));
     }
 
+    public async Task<bool> ExisteSobreposicaoDoVeiculoAsync(
+        Guid veiculoId,
+        DateTimeOffset inicio,
+        DateTimeOffset fim,
+        CancellationToken cancellationToken
+    )
+    {
+        // EXISTS para o Postgres parar na primeira linha que casar, em vez de contar todas.
+        const string sql = $"""
+            SELECT EXISTS (
+                SELECT 1
+                FROM agendamentos a
+                WHERE a.veiculo_id = @VeiculoId
+                  AND {ApenasAtivos}
+                  AND {CruzaOPeriodo}
+            )
+            """;
+
+        await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);
+
+        return await conexao.ExecuteScalarAsync<bool>(new CommandDefinition(
+            sql,
+            new
+            {
+                VeiculoId = veiculoId,
+                Inicio = inicio.UtcDateTime,
+                Fim = fim.UtcDateTime
+            },
+            cancellationToken: cancellationToken
+        ));
+    }
+
     public async Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
         DateOnly? data,
         StatusAgendamento? status,
