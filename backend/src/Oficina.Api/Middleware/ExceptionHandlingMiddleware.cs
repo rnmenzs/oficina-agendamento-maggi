@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Oficina.Domain.Exceptions;
 
@@ -41,11 +42,14 @@ public sealed class ExceptionHandlingMiddleware
         }
         catch (Exception excecao)
         {
+            // O mesmo traceId que vai na resposta: sem ele no log, o identificador que pedimos ao
+            // usuário não encontra nada, e a mensagem abaixo seria uma promessa vazia.
             _log.LogError(
                 excecao,
-                "Erro não tratado em {Metodo} {Caminho}",
+                "Erro não tratado em {Metodo} {Caminho} com traceId {TraceId}",
                 contexto.Request.Method,
-                contexto.Request.Path
+                contexto.Request.Path,
+                Activity.Current?.Id ?? contexto.TraceIdentifier
             );
 
             // Mensagem genérica: detalhe de erro inesperado fica no log, não na resposta.
