@@ -24,6 +24,13 @@ public sealed partial record Telefone
 
         var digitos = NaoDigitos().Replace(texto, string.Empty);
 
+        // Preenchimento automático do navegador costuma injetar +55. Remover é seguro porque
+        // número nacional nunca tem 12 ou 13 dígitos, então não há ambiguidade com o DDD 55.
+        if (digitos.Length is 12 or 13 && digitos.StartsWith("55", StringComparison.Ordinal))
+        {
+            digitos = digitos[2..];
+        }
+
         if (!Formato().IsMatch(digitos))
         {
             throw new DomainException("Telefone inválido. Informe DDD e número, com 10 ou 11 dígitos.");
