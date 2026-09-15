@@ -142,6 +142,16 @@ Em construção.
 
 **Paginação começa pelos agendamentos.** A listagem de agendamentos nasce paginada, com `LIMIT` e `OFFSET` no próprio SQL, porque é onde há volume e filtro combinado. As listagens de clientes e de veículos ainda trazem todas as linhas: uma rede com dezenas de lojas acumula cadastro suficiente para isso incomodar, então a intenção é reaproveitar a mesma paginação nelas, não mantê-las sem limite. O trabalho é de reuso, não de construção: os parâmetros, o formato de resposta paginada e o componente de tela já existem por causa dos agendamentos.
 
+**Horário de funcionamento avaliado no fuso da oficina.** Tudo é guardado em UTC, mas "das 08:00 às 18:00" é hora local. A regra converte para `America/Sao_Paulo` antes de olhar dia da semana e hora: sem isso, 22:00 de uma sexta em Brasília seria 01:00 de sábado em UTC e a regra avaliaria o dia errado. O filtro de data na listagem faz a mesma conversão, pelo mesmo motivo.
+
+**O fim do serviço é inclusivo, e domingo é fechado.** Uma troca de óleo às 11:30 de sábado termina exatamente às 12:00 e é aceita; recusar obrigaria a oficina a parar de agendar antes de fechar. O serviço inteiro também precisa caber no mesmo dia.
+
+**Tipo de serviço e status viajam como texto nos DTOs.** O projeto DTO não referencia o domínio, e o padrão da fronteira já é esse: `VeiculoResponse` carrega `string Placa`, sendo `Placa` um value object com validação. Espelhar os enums criaria uma terceira cópia dos nomes, que já existem no domínio e no `CHECK` do banco.
+
+**Alterar status é um endpoint só.** `PATCH /api/agendamentos/{id}/status` recebe o destino, em vez de três rotas por ação. A tela já precisa calcular quais transições são permitidas para o status atual, então mandar o destino escolhido é o caminho natural.
+
+**As consultas de agendamento trazem veículo e cliente.** Uma agenda que mostra só identificadores é inútil na tela, e buscar esses dados por linha custaria uma chamada por agendamento. A entidade continua referenciando o veículo por identificador: quem carrega os dados de exibição é a projeção que a consulta devolve, ao lado da entidade.
+
 **Swagger sempre habilitado e redirecionamento HTTPS só fora de desenvolvimento.** Local, a API roda em HTTP na porta 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS. O perfil `https` continua disponível com `dotnet run --launch-profile https`. Em produção, TLS normalmente termina num proxy reverso na frente da API.
 
 **Configuração via `.env`.** Mesmo sendo um projeto de teste público, credenciais e configurações ficam em variáveis de ambiente para seguir boas práticas. O `.env.example` versionado documenta todas as variáveis necessárias; o `.env` real fica no `.gitignore`.
