@@ -16,7 +16,7 @@ backend/                  solução .NET (Oficina.slnx)
   src/Oficina.Api         controllers, injeção de dependência, middleware de erros, Swagger, CORS
   tests/Oficina.Tests     testes unitários das regras de negócio (xUnit)
 frontend/                 aplicação React Router v7 (SPA)
-scripts/                  scripts SQL numerados: tabelas, restrições e índices, dados iniciais
+scripts/                  scripts SQL numerados: tabelas, restrições e índices, seed e migrations
 docker-compose.yml        PostgreSQL já com os scripts executados
 .env.example              template de variáveis de ambiente (copiar para .env)
 ```
@@ -110,51 +110,47 @@ Em construção.
 
 ## Decisões técnicas
 
-**PostgreSQL.** Além de ser gratuito e simples de subir com Docker, tem `tstzrange` e constraints de exclusão, que garantem no próprio banco que um veículo não tenha dois agendamentos ativos sobrepostos, mesmo com requisições concorrentes.
+**PostgreSQL.** Gratuito, sobe com um comando no Docker, e tem `tstzrange` com constraint de exclusão: o próprio banco garante que um veículo não tenha dois agendamentos sobrepostos, mesmo com requisições simultâneas.
 
-**Dapper em vez de ADO.NET puro.** O SQL continua cem por cento escrito à mão e parametrizado. O Dapper só elimina o código repetitivo de abrir `DataReader` e ler coluna por coluna, o que reduz erros bobos de índice ou de tipo. Não é um ORM: não gera SQL nem rastreia entidades.
+**Dapper em vez de ADO.NET puro.** O SQL continua escrito à mão e parametrizado; o Dapper só tira o código repetitivo de ler o `DataReader` coluna por coluna. Não é ORM: não gera SQL nem rastreia entidades.
 
-**xUnit.** É o framework usado pelos templates oficiais do .NET e pelo próprio ASP.NET Core. `[Theory]` com `[InlineData]` encaixa bem nas regras de negócio, que são tabelas de casos (horário de funcionamento, transições de status).
+**Controllers em vez de Minimal APIs.** Deixam cada endpoint fino, com `[ProducesResponseType]` alimentando o Swagger e binding de DTO automático.
 
-**Controllers em vez de Minimal APIs.** Com cinco recursos e validação de entrada, controllers mantêm cada endpoint fino e legível, com `[ProducesResponseType]` para o Swagger e binding de DTO automático.
+**xUnit.** É o framework dos templates oficiais do .NET. `[Theory]` com `[InlineData]` encaixa nas regras de negócio, que são tabelas de casos.
 
-**Ids em UUID.** Decisão pensando num projeto real, onde inteiro autoincremento não seria usado: expõe o volume de registros, permite enumerar recursos pela URL e amarra a identidade ao banco. Com UUID a entidade nasce com id no domínio, via `Guid.CreateVersion7()`, que é ordenado por tempo e por isso não fragmenta o índice como o UUID aleatório. O `DEFAULT gen_random_uuid()` nas tabelas é só fallback para o seed.
+**Ids em UUID.** Decisão pensando num projeto real: inteiro autoincremento expõe o volume de registros, permite enumerar recursos pela URL e amarra a identidade ao banco. Com UUID a entidade nasce com id no domínio, via `Guid.CreateVersion7()`, ordenado por tempo e por isso amigável ao índice.
 
-**Coluna `fim` gravada.** A duração é derivada do tipo de serviço no domínio, mas gravar o fim torna as consultas de capacidade e sobreposição uma comparação de intervalos simples e indexável (`inicio < :fim AND fim > :inicio`).
-
-**Datas em `timestamptz` e fuso fixo da oficina.** A API recebe e devolve datas em ISO 8601 com offset. As regras "não agendar no passado" e "cancelar até 2 horas antes" comparam instantes, sem fuso. A regra de horário de funcionamento converte o instante para o fuso da oficina (`America/Sao_Paulo`) antes de olhar dia da semana e hora.
-
-**Carimbos de tempo mantidos pelo banco.** As três tabelas têm `criado_em` e `atualizado_em`, ambos com `DEFAULT now()`. O padrão só vale no insert, então um gatilho move `atualizado_em` a cada `UPDATE`. A regra fica no banco em vez de repetida em cada comando da aplicação por dois motivos: vale também para escrita manual em SQL, e mantém todos os instantes sob o mesmo relógio, o do Postgres. A função do gatilho não cita tabela, então as três a reaproveitam e incluir uma nova custa uma linha. O efeito colateral aceito é que o carimbo avança em qualquer `UPDATE`, mesmo quando nenhum valor muda.
-
-**Placa normalizada.** Aceita `ABC-1234` ou `ABC1D23` na entrada (qualquer caixa) e grava em maiúsculas sem hífen, com `UNIQUE` e `CHECK` de formato no banco. A formatação para exibição fica no frontend.
-
-**Enum simples para tipo de serviço e status, sem classe de enumeração.** São três tipos com um único atributo, a duração, e quatro status sem atributo nenhum. O `switch` sobre enum faz o compilador avisar quando um valor novo fica sem duração, o DTO expõe o nome como texto e a DAL lê e grava pelo mesmo nome, que é o do `CHECK` no banco. Uma classe de enumeração só compensaria se o tipo ganhasse mais dados, como preço, ou viesse do banco.
-
-**Status e tipo de serviço como texto com `CHECK`.** Legível direto no banco e espelha os enums do domínio, sem tabela de lookup para três valores.
-
-**Só `Agendado` e `EmAndamento` ocupam vaga.** Para capacidade e sobreposição, agendamentos `Cancelado` e `Concluido` não contam. Esse critério está nos índices parciais e na constraint de exclusão, e as consultas da BLL usam o mesmo filtro.
-
-**O banco confere que `fim` bate com a duração do tipo de serviço.** Uma `CHECK` recalcula `inicio + duração` e recusa qualquer linha inconsistente, então as consultas de capacidade podem confiar na coluna.
-
-**Constraint de exclusão para sobreposição por veículo.** Protege a regra 4 contra concorrência sem nenhum código extra: se duas requisições passarem pela validação ao mesmo tempo, o banco recusa a segunda. A regra de capacidade (3 simultâneos) não cabe numa constraint declarativa e é tratada na camada BLL.
-
-**Seed com datas relativas.** Os agendamentos iniciais são calculados a partir da próxima segunda-feira no momento da execução, então continuam válidos em qualquer data. A próxima segunda às 09:00 já tem três serviços simultâneos, o que permite testar a regra de capacidade na hora. Cada script roda numa transação: ou aplica tudo, ou nada.
-
-**Paginação começa pelos agendamentos.** A listagem de agendamentos nasce paginada, com `LIMIT` e `OFFSET` no próprio SQL, porque é onde há volume e filtro combinado. As listagens de clientes e de veículos ainda trazem todas as linhas: uma rede com dezenas de lojas acumula cadastro suficiente para isso incomodar, então a intenção é reaproveitar a mesma paginação nelas, não mantê-las sem limite. O trabalho é de reuso, não de construção: os parâmetros, o formato de resposta paginada e o componente de tela já existem por causa dos agendamentos.
-
-**Horário de funcionamento avaliado no fuso da oficina.** Tudo é guardado em UTC, mas "das 08:00 às 18:00" é hora local. A regra converte para `America/Sao_Paulo` antes de olhar dia da semana e hora: sem isso, 22:00 de uma sexta em Brasília seria 01:00 de sábado em UTC e a regra avaliaria o dia errado. O filtro de data na listagem faz a mesma conversão, pelo mesmo motivo.
+**Datas em `timestamptz`, respostas sempre em UTC.** A entrada aceita ISO 8601 com qualquer offset; a saída vem normalizada em UTC, e converter para exibição é trabalho do frontend. "Não agendar no passado" e "cancelar até 2 horas antes" comparam instantes, sem fuso. Já "das 08:00 às 18:00" é hora local: a regra converte para `America/Sao_Paulo` antes de olhar dia da semana e hora, e o filtro de data na listagem faz a mesma conversão. Sem isso, um agendamento das 22:00 de sexta seria sábado em UTC e apareceria no dia errado.
 
 **O fim do serviço é inclusivo, e domingo é fechado.** Uma troca de óleo às 11:30 de sábado termina exatamente às 12:00 e é aceita; recusar obrigaria a oficina a parar de agendar antes de fechar. O serviço inteiro também precisa caber no mesmo dia.
 
-**Tipo de serviço e status viajam como texto nos DTOs.** O projeto DTO não referencia o domínio, e o padrão da fronteira já é esse: `VeiculoResponse` carrega `string Placa`, sendo `Placa` um value object com validação. Espelhar os enums criaria uma terceira cópia dos nomes, que já existem no domínio e no `CHECK` do banco.
+**Coluna `fim` gravada, e conferida pelo banco.** A duração vem do tipo de serviço no domínio, mas gravar o fim torna capacidade e sobreposição uma comparação de intervalos indexável. Uma `CHECK` recalcula `inicio + duração` e recusa linha inconsistente, então as consultas confiam na coluna.
 
-**Alterar status é um endpoint só.** `PATCH /api/agendamentos/{id}/status` recebe o destino, em vez de três rotas por ação. A tela já precisa calcular quais transições são permitidas para o status atual, então mandar o destino escolhido é o caminho natural.
+**Carimbos de tempo mantidos pelo banco.** `criado_em` por `DEFAULT now()` e `atualizado_em` movido por gatilho a cada `UPDATE`. Fica no banco, e não repetido em cada comando, por dois motivos: vale também para escrita manual em SQL, e mantém todos os instantes sob o mesmo relógio. A função do gatilho não cita tabela, então as três a reaproveitam. O efeito colateral aceito é o carimbo avançar mesmo quando nenhum valor muda.
 
-**As consultas de agendamento trazem veículo e cliente.** Uma agenda que mostra só identificadores é inútil na tela, e buscar esses dados por linha custaria uma chamada por agendamento. A entidade continua referenciando o veículo por identificador: quem carrega os dados de exibição é a projeção que a consulta devolve, ao lado da entidade.
+**Enums simples, gravados e trafegados como texto.** Três tipos de serviço com um único atributo, a duração, e quatro status sem atributo nenhum não justificam classe de enumeração; o `switch` sobre enum ainda faz o compilador avisar quando um valor novo fica sem duração. No banco são texto com `CHECK`, legíveis direto na tabela. Nos DTOs também são texto, porque o projeto DTO não referencia o domínio e espelhar os enums criaria uma terceira cópia dos nomes.
 
-**Swagger sempre habilitado e redirecionamento HTTPS só fora de desenvolvimento.** Local, a API roda em HTTP na porta 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS. O perfil `https` continua disponível com `dotnet run --launch-profile https`. Em produção, TLS normalmente termina num proxy reverso na frente da API.
+**Placa normalizada.** Aceita `ABC-1234` ou `ABC1D23` em qualquer caixa e grava em maiúsculas sem hífen, com `UNIQUE` e `CHECK` de formato. Formatar para exibição é trabalho do frontend.
 
-**Configuração via `.env`.** Mesmo sendo um projeto de teste público, credenciais e configurações ficam em variáveis de ambiente para seguir boas práticas. O `.env.example` versionado documenta todas as variáveis necessárias; o `.env` real fica no `.gitignore`.
+**Só `Agendado` e `EmAndamento` ocupam vaga.** Cancelado e concluído não contam para capacidade nem para sobreposição. O mesmo critério está nos índices parciais, na constraint de exclusão e nas consultas.
+
+**Sobreposição por veículo garantida por constraint de exclusão.** Se duas requisições passarem pela validação ao mesmo tempo, o banco recusa a segunda — proteção contra concorrência sem código nenhum. A capacidade de três simultâneos não cabe numa constraint declarativa e é checada na BLL.
+
+**Não sobrepor o mesmo veículo é checado na BLL e garantido pelo banco.** A checagem na camada de regras mantém a regra junto das outras e recusa antes de tentar gravar. Sozinha ela tem brecha: entre consultar e gravar cabe outra requisição, e as duas passariam pela consulta. A constraint de exclusão fecha essa janela, e é o único mecanismo aqui que resiste a requisições simultâneas.
+
+**Alterar status é um endpoint só, e a gravação confere o status lido.** `PATCH /api/agendamentos/{id}/status` recebe o destino, em vez de três rotas por ação, porque a tela já precisa calcular quais transições valem para o status atual. A gravação leva o status anterior no `WHERE`: entre ler e gravar cabe outra requisição, e sem essa condição duas chamadas simultâneas validariam a transição sobre o mesmo status e a segunda apagaria a primeira, deixando um estado que nenhuma transição permite. Se nada for atualizado, a resposta é conflito.
+
+**As consultas de agendamento trazem veículo e cliente.** Uma agenda que mostra só identificadores é inútil na tela, e buscar esses dados por linha custaria uma chamada por agendamento. A entidade continua referenciando o veículo por id: quem carrega os dados de exibição é a projeção que a consulta devolve, ao lado da entidade.
+
+**Paginação começa pelos agendamentos.** `LIMIT` e `OFFSET` no próprio SQL, porque é onde há volume e filtro combinado. Clientes e veículos ainda trazem todas as linhas; numa rede com dezenas de lojas isso passa a incomodar, e a intenção é reaproveitar a mesma paginação neles.
+
+**Mudança de esquema entra como migration.** Os scripts `001` a `003` são a linha de base de um banco novo e não se editam mais: qualquer alteração vira script novo, `004` em diante, aditivo e em transação. Editar um script já aplicado não muda nenhum banco que já exista — a diferença só apareceria em erro de execução.
+
+**Seed com datas relativas.** Calculadas a partir da próxima segunda-feira no momento da execução, então continuam válidas em qualquer data. A próxima segunda às 09:00 já nasce com três serviços simultâneos, para a regra de capacidade poder ser testada na hora.
+
+**Swagger sempre habilitado, redirecionamento HTTPS só fora de desenvolvimento.** Local a API roda em HTTP na 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS. O perfil `https` continua disponível com `dotnet run --launch-profile https`.
+
+**Configuração via `.env`.** Credenciais em variáveis de ambiente mesmo num projeto de teste público. O `.env.example` versionado documenta as variáveis; o `.env` real não é versionado.
 
 ## O que faria diferente com mais tempo
 
