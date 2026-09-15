@@ -179,4 +179,14 @@ public sealed class Agendamento
         DayOfWeek.Saturday => FechamentoNoSabado,
         _ => FechamentoEmDiaUtil
     };
+
+    // Público porque a listagem filtra por dia e a coluna guarda instante: às 22:00 daqui já é o
+    // dia seguinte em UTC. Fica aqui para o fuso não precisar ser repetido fora do domínio.
+    public static DateTimeOffset InicioDoDia(DateOnly dia)
+    {
+        var fuso = TimeZoneInfo.FindSystemTimeZoneById(FusoDaOficina);
+        var meiaNoite = dia.ToDateTime(TimeOnly.MinValue);
+
+        return new DateTimeOffset(meiaNoite, fuso.GetUtcOffset(meiaNoite));
+    }
 }

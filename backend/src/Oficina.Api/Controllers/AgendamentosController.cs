@@ -65,12 +65,20 @@ public sealed class AgendamentosController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PaginaResponse<AgendamentoResponse>>> Listar(
         CancellationToken cancellationToken,
-        [FromQuery] DateOnly? data = null,
+        [FromQuery] DateOnly? dataInicio = null,
+        [FromQuery] DateOnly? dataFim = null,
         [FromQuery] string? status = null,
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanhoDaPagina = 20
     )
     {
-        return Ok(await _servico.ListarAsync(data, status, pagina, tamanhoDaPagina, cancellationToken));
+        return Ok(await _servico.ListarAsync(
+            dataInicio,
+            dataFim,
+            status,
+            pagina,
+            tamanhoDaPagina,
+            cancellationToken
+        ));
     }
 }

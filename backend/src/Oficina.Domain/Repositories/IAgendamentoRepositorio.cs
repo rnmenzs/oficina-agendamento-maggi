@@ -39,9 +39,11 @@ public interface IAgendamentoRepositorio
         CancellationToken cancellationToken
     );
 
-    // Filtro e paginação no SQL, nunca em memória.
+    // Filtro e paginação no SQL, nunca em memória. O período chega como faixa meia-aberta de
+    // instantes, e não como data: assim a comparação é direta contra a coluna e usa o índice.
     Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
-        DateOnly? data,
+        DateTimeOffset? de,
+        DateTimeOffset? ate,
         StatusAgendamento? status,
         int pagina,
         int tamanhoDaPagina,

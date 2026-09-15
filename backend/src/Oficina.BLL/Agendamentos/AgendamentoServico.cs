@@ -115,7 +115,8 @@ public sealed class AgendamentoServico
     }
 
     public async Task<PaginaResponse<AgendamentoResponse>> ListarAsync(
-        DateOnly? data,
+        DateOnly? dataInicio,
+        DateOnly? dataFim,
         string? status,
         int pagina,
         int tamanhoDaPagina,
@@ -126,12 +127,24 @@ public sealed class AgendamentoServico
             ? (StatusAgendamento?)null
             : Converter<StatusAgendamento>(status, "Status");
 
+        if (dataInicio is not null && dataFim is not null && dataFim < dataInicio)
+        {
+            throw new DomainException("A data final não pode ser anterior à data inicial.");
+        }
+
+        // As datas viram uma faixa meia-aberta de instantes: da meia-noite do primeiro dia até a
+        // meia-noite do dia seguinte ao último, no fuso da oficina. Assim o último dia entra
+        // inteiro, e um dia só é pedir a mesma data nas duas pontas.
+        var de = dataInicio is null ? (DateTimeOffset?)null : Agendamento.InicioDoDia(dataInicio.Value);
+        var ate = dataFim is null ? (DateTimeOffset?)null : Agendamento.InicioDoDia(dataFim.Value.AddDays(1));
+
         // Corrigir em vez de recusar: página fora da faixa é erro de navegação, não de intenção.
         pagina = Math.Max(pagina, 1);
         tamanhoDaPagina = Math.Clamp(tamanhoDaPagina, 1, TamanhoMaximoDaPagina);
 
         var resultado = await _agendamentos.ListarAsync(
-            data,
+            de,
+            ate,
             filtro,
             pagina,
             tamanhoDaPagina,

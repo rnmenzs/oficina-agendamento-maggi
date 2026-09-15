@@ -226,7 +226,8 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
     }
 
     public async Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
-        DateOnly? data,
+        DateTimeOffset? de,
+        DateTimeOffset? ate,
         StatusAgendamento? status,
         int pagina,
         int tamanhoDaPagina,
@@ -235,11 +236,13 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
     {
         // Filtro opcional resolvido no próprio SQL: com o parâmetro nulo a condição vira verdadeira
         // e o Postgres a descarta.
-        // A data é comparada no fuso da oficina, senão um agendamento das 22:00 cairia no dia seguinte.
+        // Comparação direta contra a coluna, sem função em volta dela: com função o índice de
+        // inicio não seria usado. Quem traduz dia em faixa é o HorarioDaOficina.
         // Os casts são obrigatórios: sem eles o Postgres não consegue deduzir o tipo do parâmetro,
         // porque o primeiro uso é um IS NULL, que serve para qualquer tipo.
         const string filtro = """
-            WHERE (@Data::date IS NULL OR (a.inicio AT TIME ZONE 'America/Sao_Paulo')::date = @Data::date)
+            WHERE (@De::timestamptz IS NULL OR a.inicio >= @De::timestamptz)
+              AND (@Ate::timestamptz IS NULL OR a.inicio < @Ate::timestamptz)
               AND (@Status::text IS NULL OR a.status = @Status::text)
             """;
 
@@ -264,7 +267,8 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
             sql,
             new
             {
-                Data = data?.ToDateTime(TimeOnly.MinValue),
+                De = de?.UtcDateTime,
+                Ate = ate?.UtcDateTime,
                 Status = status?.ToString(),
                 Tamanho = tamanhoDaPagina,
                 Pulo = (pagina - 1) * tamanhoDaPagina

@@ -240,4 +240,28 @@ public class AgendamentoTests
     // Terça às 14:00, bem dentro do expediente e quatro horas à frente do instante de referência.
     private static Agendamento AgendamentoValido() =>
         Agendamento.Criar(Guid.CreateVersion7(), EmBrasilia(2026, 9, 15, 14, 0), TipoServico.Revisao, Agora);
+
+    [Fact]
+    public void InicioDoDia_devolve_meia_noite_no_fuso_da_oficina()
+    {
+        var inicio = Agendamento.InicioDoDia(new DateOnly(2026, 9, 16));
+
+        Assert.Equal(new DateTimeOffset(2026, 9, 16, 0, 0, 0, TimeSpan.FromHours(-3)), inicio);
+        Assert.Equal(new DateTime(2026, 9, 16, 3, 0, 0, DateTimeKind.Utc), inicio.UtcDateTime);
+    }
+
+    // Em UTC, 22:00 da quarta já é quinta. Sem a conversão, a agenda mostraria o dia errado.
+    [Fact]
+    public void InicioDoDia_mantem_o_fim_da_noite_no_dia_certo()
+    {
+        var dia = new DateOnly(2026, 9, 16);
+        var dezEDuasDaNoite = new DateTimeOffset(2026, 9, 16, 22, 0, 0, TimeSpan.FromHours(-3));
+
+        Assert.Equal(17, dezEDuasDaNoite.UtcDateTime.Day);
+        Assert.InRange(
+            dezEDuasDaNoite,
+            Agendamento.InicioDoDia(dia),
+            Agendamento.InicioDoDia(dia.AddDays(1)).AddTicks(-1)
+        );
+    }
 }

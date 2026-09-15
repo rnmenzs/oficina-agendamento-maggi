@@ -331,8 +331,8 @@ public class AgendamentoServicoTests
         var (servico, veiculos, _) = Montar();
         await CriarTres(servico, veiculos);
 
-        var primeira = await servico.ListarAsync(null, null, 1, 2, CancellationToken.None);
-        var segunda = await servico.ListarAsync(null, null, 2, 2, CancellationToken.None);
+        var primeira = await servico.ListarAsync(null, null, null, 1, 2, CancellationToken.None);
+        var segunda = await servico.ListarAsync(null, null, null, 2, 2, CancellationToken.None);
 
         Assert.Equal(3, primeira.Total);
         Assert.Equal(2, primeira.TotalDePaginas);
@@ -347,12 +347,72 @@ public class AgendamentoServicoTests
         await CriarTres(servico, veiculos);
 
         var naQuarta = await servico.ListarAsync(
-            new DateOnly(2026, 9, 16), null, 1, 10, CancellationToken.None);
+            new DateOnly(2026, 9, 16), new DateOnly(2026, 9, 16), null, 1, 10, CancellationToken.None);
         var naQuinta = await servico.ListarAsync(
-            new DateOnly(2026, 9, 17), null, 1, 10, CancellationToken.None);
+            new DateOnly(2026, 9, 17), new DateOnly(2026, 9, 17), null, 1, 10, CancellationToken.None);
 
         Assert.Equal(3, naQuarta.Total);
         Assert.Equal(0, naQuinta.Total);
+    }
+
+    [Fact]
+    public async Task ListarAsync_filtra_por_periodo_de_varios_dias()
+    {
+        var (servico, veiculos, _) = Montar();
+        await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+        await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[1].Id, NoveDaManha.AddDays(1), "TrocaOleo"),
+            CancellationToken.None
+        );
+
+        var quarta = new DateOnly(2026, 9, 16);
+        var osDois = await servico.ListarAsync(
+            quarta, quarta.AddDays(1), null, 1, 10, CancellationToken.None);
+        var soAQuinta = await servico.ListarAsync(
+            quarta.AddDays(1), quarta.AddDays(1), null, 1, 10, CancellationToken.None);
+
+        Assert.Equal(2, osDois.Total);
+        Assert.Equal(1, soAQuinta.Total);
+    }
+
+    [Fact]
+    public async Task ListarAsync_aceita_periodo_com_uma_ponta_aberta()
+    {
+        var (servico, veiculos, _) = Montar();
+        await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+
+        var daQuartaEmDiante = await servico.ListarAsync(
+            new DateOnly(2026, 9, 16), null, null, 1, 10, CancellationToken.None);
+        var ateATerca = await servico.ListarAsync(
+            null, new DateOnly(2026, 9, 15), null, 1, 10, CancellationToken.None);
+
+        Assert.Equal(1, daQuartaEmDiante.Total);
+        Assert.Equal(0, ateATerca.Total);
+    }
+
+    [Fact]
+    public async Task ListarAsync_recusa_data_final_anterior_a_inicial()
+    {
+        var (servico, _, _) = Montar();
+
+        var excecao = await Assert.ThrowsAsync<DomainException>(
+            () => servico.ListarAsync(
+                new DateOnly(2026, 9, 17),
+                new DateOnly(2026, 9, 16),
+                null,
+                1,
+                10,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Contains("anterior à data inicial", excecao.Message);
     }
 
     [Fact]
@@ -367,7 +427,7 @@ public class AgendamentoServicoTests
         );
 
         var emAndamento = await servico.ListarAsync(
-            null, "emandamento", 1, 10, CancellationToken.None);
+            null, null, "emandamento", 1, 10, CancellationToken.None);
 
         Assert.Single(emAndamento.Itens);
         Assert.Equal(criados[0].Id, emAndamento.Itens[0].Id);
@@ -378,7 +438,7 @@ public class AgendamentoServicoTests
     {
         var (servico, _, _) = Montar();
 
-        var pagina = await servico.ListarAsync(null, null, 0, 500, CancellationToken.None);
+        var pagina = await servico.ListarAsync(null, null, null, 0, 500, CancellationToken.None);
 
         Assert.Equal(1, pagina.Pagina);
         Assert.Equal(50, pagina.TamanhoDaPagina);
@@ -390,7 +450,7 @@ public class AgendamentoServicoTests
         var (servico, _, _) = Montar();
 
         await Assert.ThrowsAsync<DomainException>(
-            () => servico.ListarAsync(null, "Pausado", 1, 10, CancellationToken.None)
+            () => servico.ListarAsync(null, null, "Pausado", 1, 10, CancellationToken.None)
         );
     }
 
@@ -487,8 +547,6 @@ public class AgendamentoServicoTests
     // Imita o que o banco garante: carimbos na gravação e recusa de sobreposição do mesmo veículo.
     private sealed class AgendamentoRepositorioFalso : IAgendamentoRepositorio
     {
-        private static readonly TimeZoneInfo Fuso = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
-
         private readonly IReadOnlyList<Veiculo> _veiculos;
         private readonly IReadOnlyList<Cliente> _clientes;
 
@@ -595,7 +653,8 @@ public class AgendamentoServicoTests
         }
 
         public Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
-            DateOnly? data,
+            DateTimeOffset? de,
+            DateTimeOffset? ate,
             StatusAgendamento? status,
             int pagina,
             int tamanhoDaPagina,
@@ -603,7 +662,8 @@ public class AgendamentoServicoTests
         )
         {
             var filtrados = Agendamentos
-                .Where(a => data is null || DateOnly.FromDateTime(NaOficina(a.Inicio)) == data)
+                .Where(a => de is null || a.Inicio >= de)
+                .Where(a => ate is null || a.Inicio < ate)
                 .Where(a => status is null || a.Status == status)
                 .OrderBy(a => a.Inicio)
                 .ThenBy(a => a.Id)
@@ -623,9 +683,6 @@ public class AgendamentoServicoTests
 
         private static bool Cruza(Agendamento agendamento, DateTimeOffset inicio, DateTimeOffset fim) =>
             agendamento.Inicio < fim && agendamento.Fim > inicio;
-
-        private static DateTime NaOficina(DateTimeOffset instante) =>
-            TimeZoneInfo.ConvertTime(instante, Fuso).Date;
 
         // O banco carimba na gravação, e devolve cópia: mutação na entidade em memória não deve
         // aparecer no repositório antes de ser salva.
