@@ -1,5 +1,6 @@
 using Oficina.Api.Middleware;
 using Oficina.BLL.Clientes;
+using Oficina.BLL.Veiculos;
 using Oficina.DAL.DependencyInjection;
 
 const string FrontendCorsPolicy = "Frontend";
@@ -20,6 +21,7 @@ builder.Configuration["ConnectionStrings:OficinaDb"] = connectionString;
 
 builder.Services.AddDal(connectionString);
 builder.Services.AddScoped<ClienteServico>();
+builder.Services.AddScoped<VeiculoServico>();
 
 // Se CORS_ORIGINS estiver definida, sobrescreve as origens do appsettings.
 var corsOriginsOverride = Environment.GetEnvironmentVariable("CORS_ORIGINS");
