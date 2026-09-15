@@ -1,5 +1,6 @@
 using Dapper;
 using Npgsql;
+using Oficina.DAL.Common;
 using Oficina.Domain.Entities;
 using Oficina.Domain.Exceptions;
 using Oficina.Domain.Repositories;
@@ -8,12 +9,6 @@ namespace Oficina.DAL.Repositories;
 
 public sealed class ClienteRepositorio : IClienteRepositorio
 {
-    // Código do Postgres para violação de restrição de unicidade.
-    private const string ViolacaoDeUnicidade = "23505";
-
-    // A chave primária levanta o mesmo código, por isso a restrição é conferida pelo nome.
-    private const string RestricaoEmailUnico = "uq_clientes_email";
-
     // Apelidos no próprio SQL em vez de ligar o casamento por sublinhado do Dapper,
     // que é estado global e afetaria todas as consultas do processo.
     private const string Colunas = """
@@ -62,13 +57,15 @@ public sealed class ClienteRepositorio : IClienteRepositorio
                 cliente.Nome,
                 cliente.Telefone.Valor,
                 cliente.Email.Valor,
-                EmUtc(carimbos.CriadoEm),
-                EmUtc(carimbos.AtualizadoEm)
+                Datas.EmUtc(carimbos.CriadoEm),
+                Datas.EmUtc(carimbos.AtualizadoEm)
             );
         }
         // Traduz aqui porque a BLL não pode depender do Npgsql para reconhecer o erro.
+        // A chave primária levanta o mesmo código, por isso a restrição é conferida pelo nome.
         catch (PostgresException excecao)
-            when (excecao.SqlState == ViolacaoDeUnicidade && excecao.ConstraintName == RestricaoEmailUnico)
+            when (excecao.SqlState == PostgresErrorCodes.UniqueViolation
+                && excecao.ConstraintName == "uq_clientes_email")
         {
             throw new ConflitoException("Já existe um cliente com este e-mail.");
         }
@@ -120,16 +117,9 @@ public sealed class ClienteRepositorio : IClienteRepositorio
             linha.Nome,
             linha.Telefone,
             linha.Email,
-            EmUtc(linha.CriadoEm),
-            EmUtc(linha.AtualizadoEm)
+            Datas.EmUtc(linha.CriadoEm),
+            Datas.EmUtc(linha.AtualizadoEm)
         );
-    }
-
-    // O Npgsql devolve timestamptz como DateTime em UTC, não como DateTimeOffset.
-    // A conversão fica aqui, na fronteira com o banco, e o domínio só vê DateTimeOffset.
-    private static DateTimeOffset EmUtc(DateTime instante)
-    {
-        return new DateTimeOffset(DateTime.SpecifyKind(instante, DateTimeKind.Utc), TimeSpan.Zero);
     }
 
     private sealed record ClienteLinha(
