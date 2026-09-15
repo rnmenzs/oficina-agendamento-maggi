@@ -41,17 +41,6 @@ public sealed class ClientesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ClienteResponse>> ObterPorId(Guid id, CancellationToken cancellationToken)
     {
-        var cliente = await _servico.ObterPorIdAsync(id, cancellationToken);
-
-        if (cliente is null)
-        {
-            return Problem(
-                detail: "Cliente não encontrado.",
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Não encontrado"
-            );
-        }
-
-        return Ok(cliente);
+        return Ok(await _servico.ObterPorIdAsync(id, cancellationToken));
     }
 }
