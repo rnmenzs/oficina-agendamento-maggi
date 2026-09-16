@@ -5,6 +5,7 @@ import { BadgePlate } from "~/components/common/badge/BadgePlate";
 import { BadgeStatus } from "~/components/common/badge/BadgeStatus";
 import { Button } from "~/components/common/button/Button";
 import { ButtonIcon } from "~/components/common/button/ButtonIcon";
+import { Card } from "~/components/common/card/Card";
 import { FormDate } from "~/components/common/forms/FormDate/FormDate";
 import { FormDateRange, type DayRange } from "~/components/common/forms/FormDateRange";
 import { FormEmail } from "~/components/common/forms/FormEmail";
@@ -23,6 +24,7 @@ import { ModalHeader } from "~/components/common/modal/ModalHeader";
 import { NavBar, type NavBarSection } from "~/components/common/navbar/NavBar";
 import { NavBarLink } from "~/components/common/navbar/NavBarLink";
 import { Notification, type NotificationTone } from "~/components/common/notification/Notification";
+import { PageHeader } from "~/components/common/page/PageHeader";
 import { Skeleton } from "~/components/common/skeleton/Skeleton";
 import { SkeletonTable } from "~/components/common/skeleton/SkeletonTable";
 import { StateEmpty } from "~/components/common/state/StateEmpty";
@@ -148,14 +150,6 @@ const ROWS = [
     { placa: "XYZ9876", cliente: "Ana Paula Souza", servico: "Diagnostico", status: "Concluido" },
     { placa: "QRS4D56", cliente: "José Antônio Ribeiro", servico: "Revisao", status: "Cancelado" }
 ] as const;
-
-function TableCard({ children }: { children: ReactNode }) {
-    return (
-        <div className="w-full overflow-hidden rounded-card border border-line bg-surface">
-            {children}
-        </div>
-    );
-}
 
 function Rows({ take }: { take: number }) {
     return ROWS.slice(0, take).map(row => (
@@ -434,6 +428,25 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
+                <Folder path="common/card/">
+                    <Component name="Card">
+                        <Usage code="<Card>{tabela}</Card>  sem padding: a tabela vai de ponta a ponta" layout="stack">
+                            <Card>
+                                <Table columns={COLUMNS}><Rows take={2} /></Table>
+                                <TablePagination page={1} pageSize={20} total={137} onChange={() => {}} />
+                            </Card>
+                        </Usage>
+                        <Usage code="<Card>{conteúdo com o seu padding}</Card>" layout="stack">
+                            <Card>
+                                <div className="grid gap-4 p-4 sm:grid-cols-2">
+                                    <FormText label="Nome" placeholder="Ana Souza" />
+                                    <FormEmail label="E-mail" placeholder="ana.souza@email.com" />
+                                </div>
+                            </Card>
+                        </Usage>
+                    </Component>
+                </Folder>
+
                 <Folder path="common/forms/">
                     <Component name="FormDate">
                         <Usage code="<FormDate />  calendário nosso, sem o do navegador" layout="grid">
@@ -559,9 +572,9 @@ export default function Catalogo() {
                             code="<NavBar home sections />  as rotas vêm de fora; a seção atual se marca sozinha pela URL"
                             layout="stack"
                         >
-                            <div className="w-full overflow-hidden rounded-card border border-line">
+                            <Card>
                                 <NavBar home="/agendamentos" sections={SECTIONS} />
-                            </div>
+                            </Card>
                         </Usage>
                     </Component>
 
@@ -578,6 +591,19 @@ export default function Catalogo() {
                     <Component name="Notification">
                         <Usage code="<Notification tone onClose>{texto}</Notification>" layout="stack">
                             <NotificationSample />
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="common/page/">
+                    <Component name="PageHeader">
+                        <Usage code="<PageHeader title subtitle>{ação}</PageHeader>" layout="stack">
+                            <PageHeader title="Clientes" subtitle="Quem tem veículo atendido nesta unidade.">
+                                <Button variant="primary">Novo cliente</Button>
+                            </PageHeader>
+                        </Usage>
+                        <Usage code="<PageHeader title />  sem subtítulo e sem ação" layout="stack">
+                            <PageHeader title="Novo agendamento" />
                         </Usage>
                     </Component>
                 </Folder>
@@ -661,9 +687,9 @@ export default function Catalogo() {
                             code="<Table columns>{<TableRow><TableCell/></TableRow>}</Table>  largura pelo colgroup, ações com rótulo só para o leitor de tela"
                             layout="stack"
                         >
-                            <TableCard>
+                            <Card>
                                 <Table columns={COLUMNS}><Rows take={4} /></Table>
-                            </TableCard>
+                            </Card>
                         </Usage>
                     </Component>
 
@@ -672,16 +698,16 @@ export default function Catalogo() {
                             code="<TablePagination page pageSize total onChange />  vive colado embaixo da tabela: o border-t dele é a única linha entre as duas"
                             layout="stack"
                         >
-                            <TableCard>
+                            <Card>
                                 <Table columns={COLUMNS}><Rows take={2} /></Table>
                                 <PaginationSample />
-                            </TableCard>
+                            </Card>
                         </Usage>
                         <Usage code="na última página, com a Próxima desligada" layout="stack">
-                            <TableCard>
+                            <Card>
                                 <Table columns={COLUMNS}><Rows take={2} /></Table>
                                 <TablePagination page={7} pageSize={20} total={137} onChange={() => {}} />
-                            </TableCard>
+                            </Card>
                         </Usage>
                     </Component>
                 </Folder>
@@ -703,7 +729,7 @@ export default function Catalogo() {
                             </Tooltip>
                         </Usage>
                         <Usage code="dentro da tabela, onde o contêiner rola: a bolha vai para o body e não é cortada" layout="stack">
-                            <TableCard>
+                            <Card>
                                 <Table columns={COLUMNS}>
                                     {ROWS.slice(0, 2).map(row => (
                                         <TableRow key={row.placa}>
@@ -719,7 +745,7 @@ export default function Catalogo() {
                                         </TableRow>
                                     ))}
                                 </Table>
-                            </TableCard>
+                            </Card>
                         </Usage>
                     </Component>
                 </Folder>
