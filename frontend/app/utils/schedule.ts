@@ -1,6 +1,6 @@
 import type { AppointmentResponse, ServiceType } from "~/types/TypeAppointment";
 import type { Day, Id, Instant } from "~/types/TypeCommon";
-import { addDays, fromDay, toDay } from "./date";
+import { addDays, fromDay, toDay, workshopParts } from "./date";
 import { SERVICE_MINUTES } from "./service";
 
 // As mesmas regras do domínio, do lado de cá: aqui elas não decidem nada, só transformam em ajuda
@@ -44,11 +44,10 @@ export function isOpen(day: Day): boolean {
     return closingOf(day) !== null;
 }
 
-// Minutos desde a meia-noite do dia, no fuso de quem olha — que é o da oficina.
-function localMinutes(instant: Instant): number {
-    const at = new Date(instant);
-
-    return at.getHours() * 60 + at.getMinutes();
+// Minutos desde a meia-noite na oficina. O instante vem em UTC da API; quem o traduz é o fuso da
+// oficina, e não o do navegador — senão a mesma agenda vista de fora do país sairia deslocada.
+function workshopMinutes(instant: Instant): number {
+    return minutesOf(workshopParts(instant)[1]);
 }
 
 /**
@@ -72,12 +71,12 @@ export function slotsOfDay(
         .filter(item => item.status === "Agendado" || item.status === "EmAndamento")
         .map(item => ({
             vehicleId: item.veiculoId,
-            from: localMinutes(item.inicio),
-            to: localMinutes(item.fim)
+            from: workshopMinutes(item.inicio),
+            to: workshopMinutes(item.fim)
         }));
 
-    const today = fromDay(day).toDateString() === now.toDateString();
-    const rightNow = now.getHours() * 60 + now.getMinutes();
+    const [today, rightNow] = workshopParts(now);
+    const passedBy = day === today ? minutesOf(rightNow) : -1;
 
     const slots: Slot[] = [];
 
@@ -85,7 +84,7 @@ export function slotsOfDay(
         const end = start + duration;
         const crossing = busy.filter(item => start < item.to && end > item.from);
 
-        const reason: SlotReason | null = today && start < rightNow ? "já passou"
+        const reason: SlotReason | null = start < passedBy ? "já passou"
             : crossing.some(item => item.vehicleId === vehicleId) ? "veículo ocupado"
             : crossing.length >= AT_THE_SAME_TIME ? "oficina cheia"
             : null;
@@ -107,8 +106,9 @@ export function slotsOfDay(
  * antes de fechar; senão o próximo dia aberto. Às 22h de uma terça, "hoje" não serve para nada.
  */
 export function nextOpenDay(now = new Date()): Day {
-    const rightNow = now.getHours() * 60 + now.getMinutes();
-    let day = toDay(now);
+    const [today, time] = workshopParts(now);
+    const rightNow = minutesOf(time);
+    let day = today;
 
     for (let ahead = 0; ahead < 8; ahead++) {
         const closing = closingOf(day);
