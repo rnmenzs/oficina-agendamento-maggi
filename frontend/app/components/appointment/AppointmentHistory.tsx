@@ -34,11 +34,11 @@ export function AppointmentHistory({ appointment }: { appointment: AppointmentDe
             <h2 className="text-xs font-semibold tracking-widest text-muted uppercase">Histórico</h2>
 
             <ol className="mt-3 flex flex-col">
-                {steps.map((step, at) => (
-                    <li key={step.status} className={`relative pl-6 ${at === steps.length - 1 ? "" : "pb-5"}`}>
+                {steps.map((step, index) => (
+                    <li key={step.status} className={`relative pl-6 ${index === steps.length - 1 ? "" : "pb-5"}`}>
                         <span aria-hidden className={`absolute top-1.5 left-0 size-2 rounded-full ${DOT[step.status]}`} />
 
-                        {at < steps.length - 1 && (
+                        {index < steps.length - 1 && (
                             <span aria-hidden className="absolute top-4 bottom-0 left-1 w-px bg-line" />
                         )}
 
