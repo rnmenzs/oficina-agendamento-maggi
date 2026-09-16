@@ -7,6 +7,8 @@ export const SERVICE_LABEL: Record<ServiceType, string> = {
     Diagnostico: "Diagnóstico"
 };
 
+export const SERVICE_TYPES = Object.keys(SERVICE_LABEL) as readonly ServiceType[];
+
 export const SERVICE_MINUTES: Record<ServiceType, number> = {
     TrocaOleo: 30,
     Revisao: 60,

@@ -59,6 +59,18 @@ export function formatTime(instant: Instant): string {
     return new Date(instant).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+/**
+ * O instante que o dia e a hora escolhidos representam aqui, no fuso de quem preenche. O `Date`
+ * montado a partir das partes já é local; o ISO sai em UTC, que é como a API recebe.
+ */
+export function instantOf(day: Day, time: string): Instant {
+    const at = fromDay(day);
+
+    at.setHours(Number(time.slice(0, 2)), Number(time.slice(3, 5)), 0, 0);
+
+    return at.toISOString();
+}
+
 /** O dia em que um instante cai, no fuso de quem está olhando, que é o da oficina. */
 export function dayOf(instant: Instant): Day {
     return toDay(new Date(instant));
