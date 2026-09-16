@@ -8,6 +8,7 @@ public sealed record AgendamentoResponse(
     Guid VeiculoId,
     string Placa,
     string Modelo,
+    int Ano,
     Guid ClienteId,
     string NomeDoCliente,
     DateTimeOffset Inicio,

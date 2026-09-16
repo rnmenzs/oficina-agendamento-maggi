@@ -236,6 +236,7 @@ public sealed class AgendamentoServico
             agendamento.VeiculoId,
             agenda.Placa,
             agenda.Modelo,
+            agenda.Ano,
             agenda.ClienteId,
             agenda.NomeDoCliente,
             agendamento.Inicio,
