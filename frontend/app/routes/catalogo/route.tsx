@@ -39,7 +39,18 @@ import { TableCell } from "~/components/common/table/TableCell";
 import { TablePagination } from "~/components/common/table/TablePagination";
 import { TableRow } from "~/components/common/table/TableRow";
 import { Tooltip } from "~/components/common/tooltip/Tooltip";
-import type { AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
+import { AppointmentFilters } from "~/components/appointment/AppointmentFilters";
+import { AppointmentHistory } from "~/components/appointment/AppointmentHistory";
+import { AppointmentPaths } from "~/components/appointment/AppointmentPaths";
+import { AppointmentSlots } from "~/components/appointment/AppointmentSlots";
+import { AppointmentStatusBar } from "~/components/appointment/AppointmentStatusBar";
+import { AppointmentSummary } from "~/components/appointment/AppointmentSummary";
+import { AppointmentTable } from "~/components/appointment/AppointmentTable";
+import type {
+    AppointmentDetailResponse, AppointmentResponse, AppointmentStatus, ServiceType
+} from "~/types/TypeAppointment";
+import { periodOf, shortcutOf, type PeriodShortcut } from "~/utils/period";
+import { slotsOfDay } from "~/utils/schedule";
 import { SERVICE_LABEL } from "~/utils/service";
 import { STATUS_LABEL } from "~/utils/status";
 
@@ -68,6 +79,64 @@ export function meta() {
 }
 
 const slug = (text: string) => text.replace(/\W/g, "");
+
+const APPOINTMENT: AppointmentResponse = {
+    id: "1", veiculoId: "v1", placa: "ABC1D23", modelo: "Volkswagen Polo", ano: 2023,
+    clienteId: "c1", nomeDoCliente: "Ana Souza",
+    inicio: "2026-09-17T12:00:00+00:00", fim: "2026-09-17T13:00:00+00:00",
+    tipoServico: "Revisao", status: "Agendado",
+    criadoEm: "2026-09-14T12:00:00+00:00", atualizadoEm: "2026-09-14T12:00:00+00:00"
+};
+
+const APPOINTMENTS: readonly AppointmentResponse[] = [
+    APPOINTMENT,
+    {
+        ...APPOINTMENT, id: "2", veiculoId: "v2", placa: "DEF5678", modelo: "Chevrolet Onix", ano: 2019,
+        nomeDoCliente: "Bruno Lima", tipoServico: "TrocaOleo", status: "EmAndamento",
+        inicio: "2026-09-17T13:30:00+00:00", fim: "2026-09-17T14:00:00+00:00"
+    },
+    {
+        ...APPOINTMENT, id: "3", veiculoId: "v3", placa: "GHI4J56", modelo: "Toyota Corolla", ano: 2024,
+        nomeDoCliente: "Carla Mendes", tipoServico: "Diagnostico", status: "Cancelado",
+        inicio: "2026-09-17T15:00:00+00:00", fim: "2026-09-17T16:30:00+00:00"
+    }
+];
+
+const APPOINTMENT_DETAIL: AppointmentDetailResponse = {
+    ...APPOINTMENT,
+    status: "Concluido",
+    atualizadoEm: "2026-09-17T13:00:00+00:00",
+    telefoneDoCliente: "11988880001",
+    emailDoCliente: "ana.souza@email.com"
+};
+
+function FiltersSample() {
+    const [shortcut, setShortcut] = useState<PeriodShortcut | null>("hoje");
+    const [period, setPeriod] = useState({ from: "2026-09-16", to: "2026-09-16" });
+    const [status, setStatus] = useState("");
+
+    return (
+        <Card>
+            <AppointmentFilters
+                shortcut={shortcut}
+                period={period}
+                status={status}
+                isDefault={shortcut === "hoje" && !status}
+                onShortcut={chosen => { setShortcut(chosen); setPeriod(periodOf(chosen, new Date())); }}
+                onPeriod={range => { setPeriod(range); setShortcut(shortcutOf(range, new Date())); }}
+                onStatus={setStatus}
+                onClear={() => { setShortcut("hoje"); setPeriod(periodOf("hoje", new Date())); setStatus(""); }}
+            />
+        </Card>
+    );
+}
+
+function SlotsSample() {
+    const [time, setTime] = useState("09:00");
+    const slots = slotsOfDay("2026-09-17", "Revisao", "v1", APPOINTMENTS, new Date("2026-09-17T08:00:00-03:00"));
+
+    return <AppointmentSlots slots={slots} value={time} onChange={setTime} />;
+}
 
 function Folder({ path, children }: { path: string; children: ReactNode }) {
     return (
@@ -877,6 +946,64 @@ export default function Catalogo() {
                                     ))}
                                 </Table>
                             </Card>
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="appointment/">
+                    <Component name="AppointmentFilters">
+                        <Usage code="<AppointmentFilters shortcut period status isDefault />  o Limpar só existe fora do padrão" layout="stack">
+                            <FiltersSample />
+                        </Usage>
+                    </Component>
+
+                    <Component name="AppointmentTable">
+                        <Usage code="<AppointmentTable appointments linkTo onAction />  as ações mudam com o status da linha" layout="stack">
+                            <Card>
+                                <AppointmentTable
+                                    appointments={APPOINTMENTS}
+                                    linkTo={() => "/catalogo"}
+                                    onAction={() => undefined}
+                                />
+                            </Card>
+                        </Usage>
+                    </Component>
+
+                    <Component name="AppointmentSummary">
+                        <Usage code="<AppointmentSummary appointment />  o que a confirmação mostra antes de mudar o status" layout="stack">
+                            <AppointmentSummary appointment={APPOINTMENT} />
+                        </Usage>
+                    </Component>
+
+                    <Component name="AppointmentStatusBar">
+                        <Usage code="<AppointmentStatusBar appointment onAction />  agendado e encerrado" layout="stack">
+                            <Card>
+                                <AppointmentStatusBar appointment={APPOINTMENT} onAction={() => undefined} />
+                            </Card>
+                            <Card>
+                                <AppointmentStatusBar appointment={APPOINTMENT_DETAIL} onAction={() => undefined} />
+                            </Card>
+                        </Usage>
+                    </Component>
+
+                    <Component name="AppointmentHistory">
+                        <Usage code="<AppointmentHistory appointment />  duas etapas: a marcação e o estado de agora" layout="stack">
+                            <Card>
+                                <AppointmentHistory appointment={APPOINTMENT_DETAIL} />
+                            </Card>
+                        </Usage>
+                    </Component>
+
+                    <Component name="AppointmentPaths">
+                        <Usage code="<AppointmentPaths status />  some num estado final, porque não sobra caminho" layout="stack">
+                            <AppointmentPaths status="Agendado" />
+                            <AppointmentPaths status="Concluido" />
+                        </Usage>
+                    </Component>
+
+                    <Component name="AppointmentSlots">
+                        <Usage code="<AppointmentSlots slots value onChange />  cheia, veículo ocupado e passado ficam travados" layout="stack">
+                            <SlotsSample />
                         </Usage>
                     </Component>
                 </Folder>
