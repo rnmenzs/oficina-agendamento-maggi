@@ -1,8 +1,12 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 
+import { useFlipUp } from "~/hooks/useFlipUp";
 import { useOutsideClick } from "~/hooks/useOutsideClick";
 import type { Day } from "~/types/TypeCommon";
 import { addDays, addMonths, fromDay, toDay } from "~/utils/date";
+
+// O calendário tem altura fixa: seis semanas, cabeçalho e a folga de `mt-1`.
+const ALTURA = 314;
 
 // Dia em ISO compara direito como texto: "2026-09-02" < "2026-09-16" sem precisar virar Date.
 const blocked = (day: Day, min?: Day, max?: Day) =>
@@ -30,6 +34,8 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
     const today = toDay(new Date());
 
     useOutsideClick(box, open, () => setOpen(false));
+
+    const acima = useFlipUp(box, open, ALTURA);
 
     // Fechar desmonta o calendário, e o foco cairia no <body> — quem usa teclado seria jogado para
     // o topo da página. Só devolve se o foco ainda estava lá dentro: clique fora é outra intenção.
@@ -99,7 +105,7 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
     }
 
     return {
-        id, box, trigger, open, month, cursor, current, today, choose, toggle, onKeyDown, close,
+        id, box, trigger, open, acima, month, cursor, current, today, choose, toggle, onKeyDown, close,
         isBlocked: (day: Day) => blocked(day, min, max),
         goToMonth: (step: number) => setMonth(addMonths(month, step))
     };

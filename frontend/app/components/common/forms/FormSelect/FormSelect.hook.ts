@@ -1,6 +1,10 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 
+import { useFlipUp } from "~/hooks/useFlipUp";
 import { useOutsideClick } from "~/hooks/useOutsideClick";
+
+// A lista mais alta que existe: `max-h-65` mais a folga de `mt-1`.
+const ALTURA = 264;
 
 export type FormSelectOption = {
     value: string;
@@ -25,6 +29,8 @@ export function useFormSelect({ options, value, defaultValue, onChange }: UseFor
     const chosen = options.find(option => option.value === current);
 
     useOutsideClick(box, open, () => setOpen(false));
+
+    const acima = useFlipUp(box, open, ALTURA);
 
     function choose(option: FormSelectOption) {
         setInternal(option.value);
@@ -62,7 +68,7 @@ export function useFormSelect({ options, value, defaultValue, onChange }: UseFor
     }
 
     return {
-        id, box, open, active, current, chosen, choose, toggle, onKeyDown, setActive,
+        id, box, open, acima, active, current, chosen, choose, toggle, onKeyDown, setActive,
         listId: `${id}-lista`,
         optionId: (at: number) => `${id}-opcao-${at}`
     };
