@@ -24,7 +24,7 @@ export function FormRadio({
 }: FormRadioProps) {
     const box = useRef<HTMLDivElement>(null);
     const id = useId();
-    const escolhido = options.findIndex(option => option.value === value);
+    const chosenAt = options.findIndex(option => option.value === value);
 
     function onKeyDown(event: KeyboardEvent) {
         const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
@@ -66,7 +66,7 @@ export function FormRadio({
 
                     // Nada escolhido ainda: o Tab entra pelo primeiro. Sem isto, com value vazio
                     // todos ficariam com -1 e o teclado pularia o grupo.
-                    const tabulavel = escolhido === -1 ? at === 0 : chosen;
+                    const tabbable = chosenAt === -1 ? at === 0 : chosen;
 
                     return (
                         <button
@@ -74,7 +74,7 @@ export function FormRadio({
                             type="button"
                             role="radio"
                             aria-checked={chosen}
-                            tabIndex={tabulavel ? 0 : -1}
+                            tabIndex={tabbable ? 0 : -1}
                             data-value={option.value}
                             onClick={() => onChange(option.value)}
                             className={`min-h-9 cursor-pointer rounded-full border px-3 py-1.5 text-sm

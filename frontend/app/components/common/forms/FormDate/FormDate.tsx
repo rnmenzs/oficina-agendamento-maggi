@@ -83,7 +83,7 @@ export function FormDate({
                         onKeyDown={calendar.onKeyDown}
                         className={`absolute left-0 z-40 w-max rounded-card border
                             border-line-strong bg-surface p-3 shadow-lg
-                            ${calendar.acima ? "bottom-full mb-1" : "top-full mt-1"}`}
+                            ${calendar.up ? "bottom-full mb-1" : "top-full mt-1"}`}
                     >
                         <FormCalendar
                             month={calendar.month}

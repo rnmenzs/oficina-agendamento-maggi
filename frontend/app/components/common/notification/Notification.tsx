@@ -20,8 +20,8 @@ export function Notification({ tone = "success", children, onClose }: Notificati
     const { classes, Icon } = TONE[tone];
 
     return (
-        <div className={`flex items-start gap-2 rounded-card bg-surface border-l-4 p-3 shadow-lg ${classes}`}>
-            <Icon size={18} aria-hidden className="mt-0.5 shrink-0" />
+        <div className={`flex items-center gap-2 rounded-card bg-surface border-l-4 p-3 shadow-lg ${classes}`}>
+            <Icon size={18} aria-hidden className="shrink-0" />
             <p className="flex-1 text-sm text-ink">{children}</p>
 
             <button

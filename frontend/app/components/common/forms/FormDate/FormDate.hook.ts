@@ -6,7 +6,7 @@ import type { Day } from "~/types/TypeCommon";
 import { addDays, addMonths, fromDay, toDay } from "~/utils/date";
 
 // O calendário tem altura fixa: seis semanas, cabeçalho e a folga de `mt-1`.
-const ALTURA = 314;
+const HEIGHT = 314;
 
 // Dia em ISO compara direito como texto: "2026-09-02" < "2026-09-16" sem precisar virar Date.
 const blocked = (day: Day, min?: Day, max?: Day) =>
@@ -35,16 +35,16 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
 
     useOutsideClick(box, open, () => setOpen(false));
 
-    const acima = useFlipUp(box, open, ALTURA);
+    const up = useFlipUp(box, open, HEIGHT);
 
     // Fechar desmonta o calendário, e o foco cairia no <body> — quem usa teclado seria jogado para
     // o topo da página. Só devolve se o foco ainda estava lá dentro: clique fora é outra intenção.
     function close() {
-        const dentro = box.current?.contains(document.activeElement);
+        const inside = box.current?.contains(document.activeElement);
 
         setOpen(false);
 
-        if (dentro) trigger.current?.focus();
+        if (inside) trigger.current?.focus();
     }
 
     function focus(day: Day) {
@@ -72,7 +72,7 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
 
         setCursor(at);
         setMonth(fromDay(at));
-        setOpen(aberto => !aberto);
+        setOpen(wasOpen => !wasOpen);
 
         if (!open) focus(at);
     }
@@ -105,7 +105,7 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
     }
 
     return {
-        id, box, trigger, open, acima, month, cursor, current, today, choose, toggle, onKeyDown, close,
+        id, box, trigger, open, up, month, cursor, current, today, choose, toggle, onKeyDown, close,
         isBlocked: (day: Day) => blocked(day, min, max),
         goToMonth: (step: number) => setMonth(addMonths(month, step))
     };

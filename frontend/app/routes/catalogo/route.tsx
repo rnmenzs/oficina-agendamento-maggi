@@ -18,13 +18,15 @@ import { FormSearch, type FormSearchOption } from "~/components/common/forms/For
 import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
 import { FormText } from "~/components/common/forms/FormText";
 import { Modal } from "~/components/common/modal/Modal";
-import { ModalProvider } from "~/components/common/modal/Modal.hook";
+import { ModalControlProvider } from "~/components/common/modal/Modal.hook";
 import { ModalBody } from "~/components/common/modal/ModalBody";
 import { ModalFooter } from "~/components/common/modal/ModalFooter";
 import { ModalHeader } from "~/components/common/modal/ModalHeader";
 import { NavBar, type NavBarSection } from "~/components/common/navbar/NavBar";
 import { NavBarLink } from "~/components/common/navbar/NavBarLink";
 import { Notification, type NotificationTone } from "~/components/common/notification/Notification";
+import { useModal } from "~/hooks/useModal";
+import { useNotification } from "~/hooks/useNotification";
 import { PageHeader } from "~/components/common/page/PageHeader";
 import { Skeleton } from "~/components/common/skeleton/Skeleton";
 import { SkeletonTable } from "~/components/common/skeleton/SkeletonTable";
@@ -63,7 +65,7 @@ export function meta() {
     return [{ title: "Catálogo de componentes" }];
 }
 
-const slug = (texto: string) => texto.replace(/\W/g, "");
+const slug = (text: string) => text.replace(/\W/g, "");
 
 function Folder({ path, children }: { path: string; children: ReactNode }) {
     return (
@@ -114,6 +116,85 @@ const INITIAL_NOTES: readonly { id: number; tone: NotificationTone; text: string
     { id: 3, tone: "warning", text: "Faltam menos de 2 horas: este agendamento não pode mais ser cancelado." },
     { id: 4, tone: "error", text: "Este veículo já tem um agendamento nesse horário." }
 ];
+
+// Conteúdo qualquer dentro da janela do sistema: quem abre decide o que vai dentro e o que o
+// `close` devolve. É assim que um cadastro vai morar numa janela sem tela nenhuma controlar
+// `open`, `onClose` e o estado do formulário.
+function SampleRegistration({ onDone }: { onDone: (name?: string) => void }) {
+    const [name, setName] = useState("");
+
+    return (
+        <>
+            <ModalHeader title="Novo cliente" description="A janela leva conteúdo, não só confirmação." />
+
+            <ModalBody>
+                <FormText
+                    label="Nome"
+                    placeholder="Ana Souza"
+                    value={name}
+                    onChange={event => setName(event.target.value)}
+                />
+            </ModalBody>
+
+            <ModalFooter>
+                <Button onClick={() => onDone()}>Voltar</Button>
+                <Button variant="primary" disabled={!name.trim()} onClick={() => onDone(name.trim())}>
+                    Cadastrar
+                </Button>
+            </ModalFooter>
+        </>
+    );
+}
+
+// A pergunta com resposta: a tela espera na mesma linha em que perguntou.
+function ModalTrigger() {
+    const { open, confirm } = useModal();
+    const { notify } = useNotification();
+
+    async function register() {
+        const name = await open<string>(close => <SampleRegistration onDone={close} />);
+
+        if (name) notify(`${name} entrou na lista.`);
+    }
+
+    async function ask(danger: boolean) {
+        const confirmed = await confirm({
+            title: danger ? "Cancelar agendamento?" : "Iniciar serviço?",
+            summary: "Fiat Argo · ABC-1234 · hoje às 09:00",
+            text: danger
+                ? "A vaga volta a ficar livre para outro serviço, e o agendamento não volta atrás."
+                : "Depois de iniciado, o serviço só pode ser concluído — não volta para agendado.",
+            action: danger ? "Cancelar agendamento" : "Iniciar serviço",
+            danger
+        });
+
+        notify(confirmed ? "Confirmado." : "Nada mudou.", confirmed ? "success" : "info");
+    }
+
+    return (
+        <>
+            <Button onClick={() => ask(false)}>Pedir confirmação</Button>
+            <Button variant="danger" onClick={() => ask(true)}>Confirmação de risco</Button>
+            <Button variant="primary" onClick={register}>Abrir um cadastro</Button>
+        </>
+    );
+}
+
+// A pilha de verdade: o contexto guarda os avisos e a região os desenha no canto. Sucesso e
+// informação somem sozinhos; alerta e erro esperam alguém fechar.
+function NotificationTrigger() {
+    const { notify } = useNotification();
+
+    return (
+        <>
+            {INITIAL_NOTES.map(item => (
+                <Button key={item.id} onClick={() => notify(item.text, item.tone)}>
+                    {item.tone}
+                </Button>
+            ))}
+        </>
+    );
+}
 
 function NotificationSample() {
     const [notes, setNotes] = useState(INITIAL_NOTES);
@@ -176,7 +257,7 @@ function PaginationSample() {
 // sem abrir nada. Só a casca precisa de clique.
 function ModalPreview() {
     return (
-        <ModalProvider value={{ titleId: "exemplo-de-moldura", onClose: () => {} }}>
+        <ModalControlProvider value={{ titleId: "exemplo-de-moldura", onClose: () => {} }}>
             <div className="w-full max-w-120 overflow-hidden rounded-card border border-line bg-surface shadow-lg">
                 <ModalHeader
                     title="Título da janela"
@@ -195,27 +276,27 @@ function ModalPreview() {
                     <Button variant="primary">Confirmar</Button>
                 </ModalFooter>
             </div>
-        </ModalProvider>
+        </ModalControlProvider>
     );
 }
 
 // Um estado só para as três: <dialog> abre na top layer, então duas abertas empilham.
 function ModalSample() {
-    const [aberta, setAberta] = useState<"narrow" | "medium" | "wide" | null>(null);
-    const fechar = () => setAberta(null);
+    const [width, setWidth] = useState<"narrow" | "medium" | "wide" | null>(null);
+    const close = () => setWidth(null);
 
     return (
         <div className="flex flex-wrap gap-3">
-            {(["narrow", "medium", "wide"] as const).map(largura => (
-                <Button key={largura} variant="plain" onClick={() => setAberta(largura)}>
-                    {largura}
+            {(["narrow", "medium", "wide"] as const).map(option => (
+                <Button key={option} variant="plain" onClick={() => setWidth(option)}>
+                    {option}
                 </Button>
             ))}
 
-            <Modal open={aberta !== null} width={aberta ?? "medium"} onClose={fechar}>
+            <Modal open={width !== null} width={width ?? "medium"} onClose={close}>
                 <ModalHeader
                     title="Janela de exemplo"
-                    description={`Largura ${aberta ?? "medium"}. Escape, clique no fundo ou o × fecham.`}
+                    description={`Largura ${width ?? "medium"}. Escape, clique no fundo ou o × fecham.`}
                 />
 
                 <ModalBody>
@@ -226,8 +307,8 @@ function ModalSample() {
                 </ModalBody>
 
                 <ModalFooter>
-                    <Button variant="plain" onClick={fechar}>Voltar</Button>
-                    <Button variant="primary" onClick={fechar}>Confirmar</Button>
+                    <Button variant="plain" onClick={close}>Voltar</Button>
+                    <Button variant="primary" onClick={close}>Confirmar</Button>
                 </ModalFooter>
             </Modal>
         </div>
@@ -577,6 +658,9 @@ export default function Catalogo() {
                         >
                             <ModalPreview />
                         </Usage>
+                        <Usage code="const { open, confirm } = useModal()  promessa: o que o conteúdo passar no close">
+                            <ModalTrigger />
+                        </Usage>
                         <Usage code="<Modal open width onClose />  a casca: abre, prende o foco, fecha" layout="stack">
                             <ModalSample />
                         </Usage>
@@ -608,6 +692,9 @@ export default function Catalogo() {
                     <Component name="Notification">
                         <Usage code="<Notification tone onClose>{texto}</Notification>" layout="stack">
                             <NotificationSample />
+                        </Usage>
+                        <Usage code="const { notify } = useNotification()  o aviso nasce no canto, por cima de qualquer tela">
+                            <NotificationTrigger />
                         </Usage>
                     </Component>
                 </Folder>

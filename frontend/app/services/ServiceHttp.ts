@@ -15,49 +15,49 @@ export class ApiError extends Error {
 
 // O backend responde erro em RFC 9457, e o "detail" é a frase escrita para quem lê. Quando nem
 // isso vem, sobra o status — melhor que "Failed to fetch", que não diz nada a ninguém.
-async function recusa(resposta: Response): Promise<never> {
-    let problema: ProblemDetails | null = null;
+async function refuse(response: Response): Promise<never> {
+    let problem: ProblemDetails | null = null;
 
     try {
-        problema = await resposta.json();
+        problem = await response.json();
     } catch {
-        problema = null;
+        problem = null;
     }
 
     throw new ApiError(
-        resposta.status,
-        problema?.detail ?? problema?.title ?? `A API respondeu ${resposta.status}.`
+        response.status,
+        problem?.detail ?? problem?.title ?? `A API respondeu ${response.status}.`
     );
 }
 
-type Opcoes = {
-    metodo?: "GET" | "POST" | "PATCH";
-    corpo?: unknown;
-    busca?: Record<string, string | number | undefined>;
+type Options = {
+    method?: "GET" | "POST" | "PATCH";
+    body?: unknown;
+    query?: Record<string, string | number | undefined>;
 };
 
-export async function pedir<T>(caminho: string, opcoes: Opcoes = {}): Promise<T> {
-    const url = new URL(`${BASE}${caminho}`);
+export async function request<T>(path: string, options: Options = {}): Promise<T> {
+    const url = new URL(`${BASE}${path}`);
 
-    for (const [chave, valor] of Object.entries(opcoes.busca ?? {})) {
-        if (valor !== undefined && valor !== "") url.searchParams.set(chave, String(valor));
+    for (const [key, value] of Object.entries(options.query ?? {})) {
+        if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
     }
 
-    let resposta: Response;
+    let response: Response;
 
     try {
-        resposta = await fetch(url, {
-            method: opcoes.metodo ?? "GET",
-            headers: opcoes.corpo ? { "Content-Type": "application/json" } : undefined,
-            body: opcoes.corpo ? JSON.stringify(opcoes.corpo) : undefined
+        response = await fetch(url, {
+            method: options.method ?? "GET",
+            headers: options.body ? { "Content-Type": "application/json" } : undefined,
+            body: options.body ? JSON.stringify(options.body) : undefined
         });
     } catch {
         // Rede fora, API fora, CORS recusado: nada disso tem status, e a tela precisa de uma frase.
         throw new ApiError(0, "Não foi possível falar com o servidor. Verifique se a API está no ar.");
     }
 
-    if (!resposta.ok) return recusa(resposta);
-    if (resposta.status === 204) return undefined as T;
+    if (!response.ok) return refuse(response);
+    if (response.status === 204) return undefined as T;
 
-    return resposta.json();
+    return response.json();
 }

@@ -10,15 +10,15 @@ import { StateEmpty } from "~/components/common/state/StateEmpty";
 import { StateError } from "~/components/common/state/StateError";
 import { TablePagination } from "~/components/common/table/TablePagination";
 import { PAGE_SIZES, readAppointmentFilter, useAppointmentFilter } from "~/hooks/useAppointmentFilter";
-import { listar } from "~/services/ServiceAppointment";
+import { list } from "~/services/ServiceAppointment";
 import { SHORTCUTS, type PeriodShortcut } from "~/utils/period";
 import type { Route } from "./+types/route";
 
 // "Nenhum agendamento hoje" diz mais do que "neste período" — quando dá para dizer qual período.
-function quando(atalho: PeriodShortcut | null): string {
-    const rotulo = SHORTCUTS.find(({ value }) => value === atalho)?.label;
+function when(shortcut: PeriodShortcut | null): string {
+    const label = SHORTCUTS.find(({ value }) => value === shortcut)?.label;
 
-    return atalho === "tudo" || !rotulo ? "com esses filtros" : rotulo.toLowerCase();
+    return shortcut === "tudo" || !label ? "com esses filtros" : label.toLowerCase();
 }
 
 export function meta() {
@@ -26,9 +26,9 @@ export function meta() {
 }
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
-    const busca = new URL(request.url).searchParams;
+    const search = new URL(request.url).searchParams;
 
-    return { pagina: await listar(readAppointmentFilter(busca)) };
+    return { page: await list(readAppointmentFilter(search)) };
 }
 
 export function ErrorBoundary() {
@@ -41,40 +41,40 @@ export function ErrorBoundary() {
     );
 }
 
-export default function Agendamentos({ loaderData }: Route.ComponentProps) {
-    const filtro = useAppointmentFilter();
-    const navegacao = useNavigation();
-    const { pagina } = loaderData;
+export default function Appointments({ loaderData }: Route.ComponentProps) {
+    const filter = useAppointmentFilter();
+    const navigation = useNavigation();
+    const { page } = loaderData;
 
     return (
         <>
-            <PageHeader title="Agendamentos" subtitle={filtro.descricao}>
+            <PageHeader title="Agendamentos" subtitle={filter.description}>
                 <Button to="/agendamentos/novo" variant="primary">Novo agendamento</Button>
             </PageHeader>
 
             <Card>
                 <AppointmentFilters
-                    atalho={filtro.atalho}
-                    periodo={filtro.periodo}
-                    status={filtro.status}
-                    padrao={filtro.padrao}
-                    onAtalho={filtro.escolherAtalho}
-                    onPeriodo={filtro.escolherPeriodo}
-                    onStatus={filtro.escolherStatus}
-                    onLimpar={filtro.limpar}
+                    shortcut={filter.shortcut}
+                    period={filter.period}
+                    status={filter.status}
+                    isDefault={filter.isDefault}
+                    onShortcut={filter.chooseShortcut}
+                    onPeriod={filter.choosePeriod}
+                    onStatus={filter.chooseStatus}
+                    onClear={filter.clear}
                 />
             </Card>
 
             <Card>
-                {navegacao.state === "loading"
+                {navigation.state === "loading"
                     ? <SkeletonTable columns={8} />
-                    : pagina.total === 0
+                    : page.total === 0
                         ? (
                             <StateEmpty
-                                title={`Nenhum agendamento ${quando(filtro.atalho)}`}
+                                title={`Nenhum agendamento ${when(filter.shortcut)}`}
                                 description="Marque um serviço ou olhe outro período."
                             >
-                                <Button onClick={() => filtro.escolherAtalho("semana")}>
+                                <Button onClick={() => filter.chooseShortcut("semana")}>
                                     Ver a semana
                                 </Button>
                                 <Button to="/agendamentos/novo" variant="primary">Novo agendamento</Button>
@@ -83,17 +83,17 @@ export default function Agendamentos({ loaderData }: Route.ComponentProps) {
                         : (
                             <>
                                 <AppointmentTable
-                                    agendamentos={pagina.itens}
+                                    appointments={page.itens}
                                     linkTo={({ id }) => `/agendamentos/${id}`}
                                 />
                                 <TablePagination
-                                    page={pagina.pagina}
-                                    pageSize={pagina.tamanhoDaPagina}
-                                    total={pagina.total}
+                                    page={page.pagina}
+                                    pageSize={page.tamanhoDaPagina}
+                                    total={page.total}
                                     unit="agendamentos"
                                     pageSizes={PAGE_SIZES}
-                                    onChange={filtro.escolherPagina}
-                                    onPageSize={filtro.escolherTamanho}
+                                    onChange={filter.choosePage}
+                                    onPageSize={filter.choosePageSize}
                                 />
                             </>
                         )}

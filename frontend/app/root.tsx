@@ -1,5 +1,7 @@
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
+import { ModalProvider } from "./context/ModalContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import type { Route } from "./+types/root";
 import "./styles.css";
 
@@ -22,7 +24,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-    return <Outlet />;
+    return (
+        <NotificationProvider>
+            <ModalProvider>
+                <Outlet />
+            </ModalProvider>
+        </NotificationProvider>
+    );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

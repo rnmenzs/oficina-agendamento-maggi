@@ -2,20 +2,22 @@ import type {
     AppointmentDetailResponse, AppointmentFilter, AppointmentResponse
 } from "~/types/TypeAppointment";
 import type { PageResponse } from "~/types/TypePage";
-import { pedir } from "./ServiceHttp";
+import { request } from "./ServiceHttp";
 
-export function listar(filtro: AppointmentFilter): Promise<PageResponse<AppointmentResponse>> {
-    return pedir("/agendamentos", {
-        busca: {
-            dataInicio: filtro.dataInicio,
-            dataFim: filtro.dataFim,
-            status: filtro.status,
-            pagina: filtro.pagina,
-            tamanhoDaPagina: filtro.tamanhoDaPagina
+// As chaves da busca são as que a API espera, e não as do nosso vocabulário: renomear aqui
+// obrigaria a traduzir de volta na URL.
+export function list(filter: AppointmentFilter): Promise<PageResponse<AppointmentResponse>> {
+    return request("/agendamentos", {
+        query: {
+            dataInicio: filter.dataInicio,
+            dataFim: filter.dataFim,
+            status: filter.status,
+            pagina: filter.pagina,
+            tamanhoDaPagina: filter.tamanhoDaPagina
         }
     });
 }
 
-export function obter(id: string): Promise<AppointmentDetailResponse> {
-    return pedir(`/agendamentos/${id}`);
+export function get(id: string): Promise<AppointmentDetailResponse> {
+    return request(`/agendamentos/${id}`);
 }

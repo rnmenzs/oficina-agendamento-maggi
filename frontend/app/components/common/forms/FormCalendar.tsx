@@ -81,9 +81,9 @@ export function FormCalendar({
                     <div key={at} role="row" className="grid grid-cols-7">
                         {week.map(date => {
                             const day = toDay(date);
-                            const estado = stateOf(day);
-                            const barrado = isBlocked(day);
-                            const fora = date.getMonth() !== month.getMonth();
+                            const state = stateOf(day);
+                            const blocked = isBlocked(day);
+                            const outside = date.getMonth() !== month.getMonth();
 
                             return (
                                 <button
@@ -91,18 +91,18 @@ export function FormCalendar({
                                     type="button"
                                     role="gridcell"
                                     data-day={day}
-                                    aria-disabled={barrado}
-                                    aria-selected={estado !== null}
+                                    aria-disabled={blocked}
+                                    aria-selected={state !== null}
                                     aria-current={day === today ? "date" : undefined}
                                     tabIndex={day === cursor ? 0 : -1}
                                     onClick={() => onChoose(day)}
                                     onMouseEnter={() => onHover?.(day)}
                                     className={`${CELL} ${
-                                        barrado ? "cursor-not-allowed text-muted/40" : ""} ${
-                                        estado
-                                            ? STATE[estado]
-                                            : `rounded-sm ${barrado ? "" : "hover:bg-surface-alt"} ${
-                                                fora ? "text-muted/60" : ""} ${
+                                        blocked ? "cursor-not-allowed text-muted/40" : ""} ${
+                                        state
+                                            ? STATE[state]
+                                            : `rounded-sm ${blocked ? "" : "hover:bg-surface-alt"} ${
+                                                outside ? "text-muted/60" : ""} ${
                                                 day === today ? "font-semibold text-primary" : ""}`}`}
                                 >
                                     {date.getDate()}
