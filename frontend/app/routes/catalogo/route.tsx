@@ -246,8 +246,8 @@ function DateRangeSample() {
     );
 }
 
-function RadioSample({ hideLabel = false }: { hideLabel?: boolean }) {
-    const [service, setService] = useState("Revisao");
+function RadioSample({ hideLabel = false, empty = false }: { hideLabel?: boolean; empty?: boolean }) {
+    const [service, setService] = useState(empty ? "" : "Revisao");
 
     return (
         <FormRadio
@@ -507,6 +507,9 @@ export default function Catalogo() {
                         </Usage>
                         <Usage code="<FormRadio hideLabel />  some da tela, continua no leitor de tela">
                             <RadioSample hideLabel />
+                        </Usage>
+                        <Usage code='<FormRadio value="" />  sem escolha: o Tab entra pelo primeiro'>
+                            <RadioSample empty />
                         </Usage>
                     </Component>
 

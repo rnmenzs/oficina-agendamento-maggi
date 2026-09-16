@@ -23,12 +23,23 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
     const [month, setMonth] = useState(() => fromDay(start));
     const [cursor, setCursor] = useState<Day>(start);
     const box = useRef<HTMLDivElement>(null);
+    const trigger = useRef<HTMLButtonElement>(null);
     const id = useId();
 
     const current = value ?? internal;
     const today = toDay(new Date());
 
     useOutsideClick(box, open, () => setOpen(false));
+
+    // Fechar desmonta o calendário, e o foco cairia no <body> — quem usa teclado seria jogado para
+    // o topo da página. Só devolve se o foco ainda estava lá dentro: clique fora é outra intenção.
+    function close() {
+        const dentro = box.current?.contains(document.activeElement);
+
+        setOpen(false);
+
+        if (dentro) trigger.current?.focus();
+    }
 
     function focus(day: Day) {
         requestAnimationFrame(() => {
@@ -46,7 +57,7 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
         if (blocked(day, min, max)) return;
 
         setInternal(day);
-        setOpen(false);
+        close();
         onChange?.(day);
     }
 
@@ -61,6 +72,12 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
     }
 
     function onKeyDown(event: KeyboardEvent) {
+        if (event.key === "Escape") {
+            event.preventDefault();
+
+            return close();
+        }
+
         const days = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
 
         if (days !== undefined) {
@@ -82,7 +99,7 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
     }
 
     return {
-        id, box, open, month, cursor, current, today, choose, toggle, onKeyDown,
+        id, box, trigger, open, month, cursor, current, today, choose, toggle, onKeyDown, close,
         isBlocked: (day: Day) => blocked(day, min, max),
         goToMonth: (step: number) => setMonth(addMonths(month, step))
     };

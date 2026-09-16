@@ -66,6 +66,7 @@ export function FormDate({
                 {name && <input type="hidden" name={name} value={calendar.current} />}
 
                 <button
+                    ref={calendar.trigger}
                     type="button"
                     id={calendar.id}
                     role="combobox"
