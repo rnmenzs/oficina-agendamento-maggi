@@ -41,6 +41,10 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const abrir = useCallback(<T,>(conteudo: Content<T>, opcoes: ModalOptions = {}) => {
+        // Abrir por cima de uma janela que ainda não respondeu encerra a anterior como desistência.
+        // Sem isto a primeira promessa nunca resolveria, e quem a esperava ficaria preso no `await`.
+        responder.current(undefined);
+
         setJanela({ conteudo: conteudo as Content<unknown>, opcoes });
         setAberta(true);
 

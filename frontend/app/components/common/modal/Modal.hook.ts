@@ -2,7 +2,7 @@ import {
     createContext, useContext, useEffect, useId, useRef, type MouseEvent, type SyntheticEvent
 } from "react";
 
-const FOCUSABLE = "input:not([type=hidden]), textarea, select, button, [tabindex]:not([tabindex='-1'])";
+const FOCUSABLE = "input:not([type=hidden]), textarea, select, button, a[href], [tabindex]:not([tabindex='-1'])";
 
 type ModalControl = {
     titleId: string;
