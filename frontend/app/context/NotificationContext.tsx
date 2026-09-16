@@ -26,8 +26,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const [notifications, setNotifications] = useState<readonly NotificationItem[]>([]);
     const ultimoId = useRef(0);
 
+    // Devolver a mesma lista quando não há o que tirar: o React desiste do render. O relógio dos
+    // seis segundos dispara mesmo para aviso já fechado na mão ou expulso pelo limite.
     const fechar = useCallback((id: number) => {
-        setNotifications(atuais => atuais.filter(nota => nota.id !== id));
+        setNotifications(atuais =>
+            atuais.some(nota => nota.id === id) ? atuais.filter(nota => nota.id !== id) : atuais);
     }, []);
 
     // Estável entre renders: quem avisa costuma fazer isso de dentro de um efeito, e um `avisar`

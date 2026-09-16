@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import { Notification, type NotificationTone } from "./Notification";
 
 export type NotificationItem = {
@@ -17,11 +19,34 @@ type NotificationRegionProps = {
 // Ela cobre a tela inteira para posicionar os avisos, então não pode capturar clique; quem
 // recebe clique é cada aviso.
 export function NotificationRegion({ notifications, onClose }: NotificationRegionProps) {
+    const regiao = useRef<HTMLDivElement>(null);
+
+    // Uma janela aberta com showModal() sobe para a camada de topo do navegador, acima de qualquer
+    // z-index — um aviso disparado com a janela aberta ficaria atrás do fundo escurecido. A região
+    // sobe para a mesma camada, e sobe de novo a cada aviso: a ordem lá é a ordem de entrada, e
+    // quem entrou por último fica na frente.
+    // O atributo só é posto quando o navegador sabe abrir: sem isso, `[popover]` sem `showPopover`
+    // vale display:none, e os avisos sumiriam de vez.
+    useEffect(() => {
+        const alvo = regiao.current;
+        if (!alvo || typeof alvo.showPopover !== "function") return;
+
+        alvo.popover = "manual";
+
+        try {
+            if (alvo.matches(":popover-open")) alvo.hidePopover();
+            alvo.showPopover();
+        } catch {
+            alvo.popover = null;
+        }
+    }, [notifications]);
+
     return (
         <div
+            ref={regiao}
             aria-live="polite"
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center
-                gap-2 p-4 sm:items-end"
+            className="pointer-events-none fixed inset-x-0 top-auto bottom-0 z-50 m-0 h-auto w-auto
+                flex flex-col items-center gap-2 border-0 bg-transparent p-4 sm:items-end"
         >
             {notifications.map(nota => (
                 <div
