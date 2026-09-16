@@ -27,6 +27,8 @@ import { NavBarLink } from "~/components/common/navbar/NavBarLink";
 import { Notification, type NotificationTone } from "~/components/common/notification/Notification";
 import { useModal } from "~/hooks/useModal";
 import { useNotification } from "~/hooks/useNotification";
+import { DataList } from "~/components/common/page/DataList";
+import { PageBreadcrumb } from "~/components/common/page/PageBreadcrumb";
 import { PageHeader } from "~/components/common/page/PageHeader";
 import { Skeleton } from "~/components/common/skeleton/Skeleton";
 import { SkeletonTable } from "~/components/common/skeleton/SkeletonTable";
@@ -708,6 +710,31 @@ export default function Catalogo() {
                         </Usage>
                         <Usage code="<PageHeader title />  sem subtítulo e sem ação" layout="stack">
                             <PageHeader title="Novo agendamento" />
+                        </Usage>
+                    </Component>
+
+                    <Component name="PageBreadcrumb">
+                        <Usage code="<PageBreadcrumb trail />  o último item é o lugar atual e não vira link" layout="stack">
+                            <PageBreadcrumb
+                                trail={[
+                                    { label: "Agendamentos", to: "/agendamentos" },
+                                    { label: "16/09/2026, 09:00" }
+                                ]}
+                            />
+                        </Usage>
+                    </Component>
+
+                    <Component name="DataList">
+                        <Usage code="<DataList entries />  as células crescem para fechar a fileira" layout="stack">
+                            <DataList
+                                entries={[
+                                    { label: "Placa", value: <BadgePlate plate="ABC1234" /> },
+                                    { label: "Veículo", value: <>Fiat Argo <span className="text-muted">2021</span></> },
+                                    { label: "Cliente", value: "Ana Souza" },
+                                    { label: "Telefone", value: "(11) 98888-0001" },
+                                    { label: "E-mail", value: "ana.souza@email.com" }
+                                ]}
+                            />
                         </Usage>
                     </Component>
                 </Folder>

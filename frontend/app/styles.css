@@ -60,3 +60,10 @@
         display: none !important;
     }
 }
+
+/* Fio de 1px em volta da célula sem dobrar na junção: sombra não ocupa espaço, então células
+   vizinhas dividem o mesmo fio. Uma borda por célula daria 2px onde elas se encostam, e o vão
+   pintado por baixo deixa buraco quando a última fileira não fecha. */
+@utility cell-line {
+    box-shadow: 0 0 0 1px var(--color-line);
+}

@@ -1,5 +1,8 @@
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
+import { Button } from "./components/common/button/Button";
+import { Card } from "./components/common/card/Card";
+import { StateEmpty } from "./components/common/state/StateEmpty";
 import { ModalProvider } from "./context/ModalContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import type { Route } from "./+types/root";
@@ -33,17 +36,24 @@ export default function App() {
     );
 }
 
+// Último anteparo: erro que nenhuma tela tratou. Sem navegação, porque pode ter quebrado antes
+// de a casca existir — só o caminho de volta.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-    const naoEncontrado = isRouteErrorResponse(error) && error.status === 404;
+    const notFound = isRouteErrorResponse(error) && error.status === 404;
 
     return (
-        <main>
-            <h1>{naoEncontrado ? "Página não encontrada" : "Algo deu errado"}</h1>
-            <p>
-                {isRouteErrorResponse(error)
-                    ? error.statusText || "A aplicação não conseguiu continuar."
-                    : "A aplicação não conseguiu continuar."}
-            </p>
+        <main className="mx-auto flex max-w-2xl flex-col px-5 py-16">
+            <Card>
+                <StateEmpty
+                    label={isRouteErrorResponse(error) ? `Erro ${error.status}` : "Erro"}
+                    title={notFound ? "Esta página não existe" : "Algo deu errado"}
+                    description={notFound
+                        ? "O endereço pode ter mudado, ou o que você procurava foi removido."
+                        : "A aplicação não conseguiu continuar. Tente de novo em instantes."}
+                >
+                    <Button to="/agendamentos" variant="primary">Ir para a agenda</Button>
+                </StateEmpty>
+            </Card>
         </main>
     );
 }
