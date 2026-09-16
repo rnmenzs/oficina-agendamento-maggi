@@ -32,8 +32,10 @@ export function useModal({ open, onClose }: UseModal) {
     const box = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const aberta = useRef(open);
+    const fechar = useRef(onClose);
 
     aberta.current = open;
+    fechar.current = onClose;
 
     useEffect(() => {
         const dialog = box.current;
@@ -57,13 +59,13 @@ export function useModal({ open, onClose }: UseModal) {
         if (!dialog) return;
 
         function avisar() {
-            if (aberta.current) onClose();
+            if (aberta.current) fechar.current();
         }
 
         dialog.addEventListener("close", avisar);
 
         return () => dialog.removeEventListener("close", avisar);
-    });
+    }, []);
 
     return {
         box,
