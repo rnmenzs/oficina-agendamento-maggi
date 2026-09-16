@@ -18,6 +18,7 @@ backend/                  solução .NET (Oficina.slnx)
 frontend/                 aplicação React Router v7 (SPA)
 scripts/                  scripts SQL numerados: tabelas, restrições e índices, seed e migrations
 docker-compose.yml        PostgreSQL já com os scripts executados
+run.sh                    sobe banco, API e frontend com um comando
 .env.example              template de variáveis de ambiente (copiar para .env)
 ```
 
@@ -51,6 +52,20 @@ O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo ba
 | `CORS_ORIGINS` | `http://localhost:5173` | Origens permitidas no CORS (separadas por vírgula) |
 
 > **Nota:** O `.env` está no `.gitignore`. Apenas o `.env.example` é versionado.
+
+### Tudo de uma vez
+
+Com o `.env` preenchido, um comando sobe banco, API e frontend:
+
+```bash
+./run.sh
+```
+
+Ele espera cada peça responder antes de seguir para a próxima, aplica as migrations pendentes e, no fim, imprime os endereços. `Ctrl+C` derrube a API e o frontend; o banco continua de pé (`docker compose stop db` para ele). Para recomeçar com o banco vazio, `./run.sh --reset`.
+
+A saída de cada processo vai para `.run/api.log` e `.run/web.log`, apagados a cada execução. Se uma porta já estiver ocupada, o script recusa em vez de subir pela metade.
+
+As seções abaixo são o passo a passo equivalente, para rodar cada parte separadamente ou sem Docker.
 
 ### 1. Banco de dados
 
