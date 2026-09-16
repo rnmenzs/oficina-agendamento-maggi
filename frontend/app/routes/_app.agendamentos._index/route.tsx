@@ -1,6 +1,7 @@
 import { useNavigation } from "react-router";
 
 import { AppointmentFilters } from "~/components/appointment/AppointmentFilters";
+import { AppointmentSummary } from "~/components/appointment/AppointmentSummary";
 import { AppointmentTable } from "~/components/appointment/AppointmentTable";
 import { Button } from "~/components/common/button/Button";
 import { Card } from "~/components/common/card/Card";
@@ -44,7 +45,9 @@ export function ErrorBoundary() {
 
 export default function Appointments({ loaderData }: Route.ComponentProps) {
     const filter = useAppointmentFilter();
-    const { change, busy } = useStatusActions();
+    const { change, busy } = useStatusActions({
+        summaryOf: appointment => <AppointmentSummary appointment={appointment} />
+    });
     const navigation = useNavigation();
     const { page } = loaderData;
 

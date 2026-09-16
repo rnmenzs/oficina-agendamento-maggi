@@ -1,5 +1,5 @@
 import { Check, Play, X, type LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRevalidator } from "react-router";
 
 import type { IconTone } from "~/components/common/button/ButtonIcon";
@@ -57,7 +57,12 @@ export function actionsFor(status: AppointmentStatus): readonly StatusAction[] {
  * Confirmar, mandar para a API, avisar e recarregar o que está na tela. A recusa da API vira o
  * aviso de erro: quem decide se a transição vale é o backend, e a mensagem dele já vem pronta.
  */
-export function useStatusActions() {
+type UseStatusActions = {
+    /** Como a confirmação mostra o agendamento. Desenhar é da tela; o padrão é uma linha de texto. */
+    summaryOf?: (appointment: AppointmentResponse) => ReactNode;
+};
+
+export function useStatusActions({ summaryOf = appointmentSummary }: UseStatusActions = {}) {
     const { confirm } = useModal();
     const { notify } = useNotification();
     const revalidator = useRevalidator();
@@ -69,7 +74,7 @@ export function useStatusActions() {
 
         const confirmed = await confirm({
             title: `${action.label}?`,
-            summary: appointmentSummary(appointment),
+            summary: summaryOf(appointment),
             text: action.consequence,
             action: action.label,
             danger: to === "Cancelado"
