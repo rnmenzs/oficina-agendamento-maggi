@@ -1,10 +1,12 @@
 import { Check, Play, X, type LucideIcon } from "lucide-react";
+import { useState } from "react";
 import { useRevalidator } from "react-router";
 
 import type { IconTone } from "~/components/common/button/ButtonIcon";
 import { ApiError } from "~/services/ServiceHttp";
 import { changeStatus } from "~/services/ServiceAppointment";
 import type { AppointmentResponse, AppointmentStatus } from "~/types/TypeAppointment";
+import type { Id } from "~/types/TypeCommon";
 import { appointmentSummary } from "~/utils/appointment";
 import { formatPlate } from "~/utils/plate";
 import { allowedTransitions, STATUS_LABEL } from "~/utils/status";
@@ -59,6 +61,7 @@ export function useStatusActions() {
     const { confirm } = useModal();
     const { notify } = useNotification();
     const revalidator = useRevalidator();
+    const [pending, setPending] = useState<Id | null>(null);
 
     async function change(appointment: AppointmentResponse, to: AppointmentStatus) {
         const action = ACTIONS[to];
@@ -74,6 +77,8 @@ export function useStatusActions() {
 
         if (!confirmed) return;
 
+        setPending(appointment.id);
+
         try {
             const saved = await changeStatus(appointment.id, to);
 
@@ -85,8 +90,14 @@ export function useStatusActions() {
                 : "Não foi possível mudar o status.";
 
             notify(message, "error");
+        } finally {
+            setPending(null);
         }
     }
 
-    return { change };
+    // Entre a troca e a lista recarregada, a tela mostra o status velho — e com ele as ações
+    // velhas. Clicar ali manda uma transição que o banco já não permite, e a resposta é uma recusa
+    // que parece defeito ("não é possível mudar de EmAndamento para Cancelado"). As ações ficam
+    // travadas até a lista chegar.
+    return { change, busy: pending !== null || revalidator.state === "loading" };
 }

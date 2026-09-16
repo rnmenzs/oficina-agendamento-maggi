@@ -44,7 +44,7 @@ export function ErrorBoundary() {
 
 export default function Appointments({ loaderData }: Route.ComponentProps) {
     const filter = useAppointmentFilter();
-    const { change } = useStatusActions();
+    const { change, busy } = useStatusActions();
     const navigation = useNavigation();
     const { page } = loaderData;
 
@@ -87,6 +87,7 @@ export default function Appointments({ loaderData }: Route.ComponentProps) {
                                 <AppointmentTable
                                     appointments={page.itens}
                                     linkTo={({ id }) => `/agendamentos/${id}`}
+                                    busy={busy}
                                     onAction={change}
                                 />
                                 <TablePagination

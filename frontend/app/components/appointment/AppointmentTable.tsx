@@ -29,13 +29,14 @@ const COLUMNS: readonly TableColumn[] = [
 type AppointmentActionsProps = {
     appointment: AppointmentResponse;
     linkTo: string;
+    busy?: boolean;
     onAction?: (appointment: AppointmentResponse, to: AppointmentStatus) => void;
 };
 
 // O lugar vago continua ocupando espaço: descendo a coluna, o mesmo ponto é sempre a mesma ação,
 // e a seta não anda de uma linha para a outra.
 // Iniciar e concluir nunca aparecem juntos, então dividem a mesma posição na linha.
-function AppointmentActions({ appointment, linkTo, onAction }: AppointmentActionsProps) {
+function AppointmentActions({ appointment, linkTo, busy, onAction }: AppointmentActionsProps) {
     const allowed = actionsFor(appointment.status);
     const cancel = allowed.find(action => action.to === "Cancelado");
     const advance = allowed.find(action => action.to !== "Cancelado");
@@ -49,6 +50,7 @@ function AppointmentActions({ appointment, linkTo, onAction }: AppointmentAction
                     label={`${action.label} de ${appointment.placa}`}
                     icon={action.icon}
                     tone={action.tone}
+                    disabled={busy}
                     onClick={() => onAction?.(appointment, action.to)}
                 />
             </Tooltip>
@@ -78,12 +80,14 @@ function AppointmentActions({ appointment, linkTo, onAction }: AppointmentAction
 
 type AppointmentTableProps = {
     appointments: readonly AppointmentResponse[];
+    /** Enquanto uma troca de status está em curso, as ações da lista inteira esperam. */
+    busy?: boolean;
     /** Para onde a seta de cada linha leva. Quem conhece as rotas do sistema é a tela. */
     linkTo: (appointment: AppointmentResponse) => string;
     onAction?: (appointment: AppointmentResponse, to: AppointmentStatus) => void;
 };
 
-export function AppointmentTable({ appointments, linkTo, onAction }: AppointmentTableProps) {
+export function AppointmentTable({ appointments, linkTo, busy, onAction }: AppointmentTableProps) {
     return (
         <Table columns={COLUMNS}>
             {appointments.map(appointment => (
@@ -127,6 +131,7 @@ export function AppointmentTable({ appointments, linkTo, onAction }: Appointment
                         <AppointmentActions
                             appointment={appointment}
                             linkTo={linkTo(appointment)}
+                            busy={busy}
                             onAction={onAction}
                         />
                     </TableCell>
