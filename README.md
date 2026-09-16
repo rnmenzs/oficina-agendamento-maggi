@@ -106,7 +106,34 @@ dotnet test
 
 ### 3. Frontend
 
-Em construção.
+Precisa de Node 20 ou superior e do pnpm. Se não tiver o pnpm, `corepack enable` já o disponibiliza
+nas versões recentes do Node.
+
+```bash
+cd frontend
+cp .env.example .env
+pnpm install
+pnpm dev
+```
+
+Aplicação em `http://localhost:5173`. **O backend precisa estar no ar**, porque as telas leem e
+gravam pela API.
+
+O endereço da API vem do `.env` do frontend, em `VITE_API_URL`, e o padrão aponta para
+`http://localhost:5062/api`. Se você mudou a porta do backend, ajuste aqui também — e confira se a
+origem do frontend está em `CORS_ORIGINS`, no `.env` da raiz, senão o navegador recusa as
+requisições.
+
+Conferir os tipos e gerar o pacote de produção:
+
+```bash
+pnpm typecheck
+pnpm build
+```
+
+Há ainda a rota `/catalogo`, fora da navegação: ela mostra cada componente da interface em todos os
+seus estados, inclusive os difíceis de alcançar numa tela real, como campo com erro ou falha de
+carregamento. Serve para revisar a interface sem depender de dados.
 
 ## Decisões técnicas
 
