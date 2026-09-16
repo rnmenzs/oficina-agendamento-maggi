@@ -12,7 +12,7 @@ import { Notification } from "~/components/common/notification/Notification";
 import { PageBreadcrumb } from "~/components/common/page/PageBreadcrumb";
 import { PageHeader } from "~/components/common/page/PageHeader";
 import { useNotification } from "~/hooks/useNotification";
-import { create, list as listAppointments } from "~/services/ServiceAppointment";
+import { create, occupyingOn } from "~/services/ServiceAppointment";
 import { list as listClients } from "~/services/ServiceClient";
 import { listOfClient } from "~/services/ServiceVehicle";
 import { ApiError } from "~/services/ServiceHttp";
@@ -40,15 +40,13 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     const clientId = search.get("cliente") ?? "";
     const day = search.get("dia") || nextOpenDay();
 
-    const [clients, vehicles, page] = await Promise.all([
+    const [clients, vehicles, appointments] = await Promise.all([
         listClients(),
         clientId ? listOfClient(clientId) : [],
-        isOpen(day)
-            ? listAppointments({ dataInicio: day, dataFim: day, pagina: 1, tamanhoDaPagina: 100 })
-            : null
+        isOpen(day) ? occupyingOn(day) : []
     ]);
 
-    return { clients, vehicles, day, appointments: page?.itens ?? [] };
+    return { clients, vehicles, day, appointments };
 }
 
 // Trocar serviço ou horário não muda nada do lado do servidor: as faixas são calculadas aqui, com
@@ -80,11 +78,20 @@ export function ErrorBoundary() {
 export async function clientAction({ request }: Route.ClientActionArgs) {
     const form = await request.formData();
 
+    const vehicleId = String(form.get("veiculoId") ?? "");
+    const time = String(form.get("hora") ?? "");
+
+    // O botão fica desabilitado sem os dois, mas envio é dado de fora: sem esta guarda, hora vazia
+    // vira data inválida e a pessoa recebe "não foi possível agendar" em vez do que falta.
+    if (!vehicleId || !time) {
+        return { created: null, error: "Escolha o veículo e o horário antes de agendar." };
+    }
+
     try {
         const created = await create({
-            veiculoId: String(form.get("veiculoId") ?? ""),
+            veiculoId: vehicleId,
             tipoServico: String(form.get("tipoServico") ?? "") as ServiceType,
-            inicio: instantOf(String(form.get("dia") ?? ""), String(form.get("hora") ?? ""))
+            inicio: instantOf(String(form.get("dia") ?? ""), time)
         });
 
         return { created, error: null };
