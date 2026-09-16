@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Form, useNavigate, useSearchParams } from "react-router";
+import { Form, useNavigate, useSearchParams, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import { AppointmentSlots } from "~/components/appointment/AppointmentSlots";
 import { Button } from "~/components/common/button/Button";
 import { Card } from "~/components/common/card/Card";
+import { StateError } from "~/components/common/state/StateError";
 import { FormDate } from "~/components/common/forms/FormDate/FormDate";
 import { FormSearch } from "~/components/common/forms/FormSearch/FormSearch";
 import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
@@ -38,7 +39,6 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     const search = new URL(request.url).searchParams;
     const clientId = search.get("cliente") ?? "";
     const day = search.get("dia") || nextOpenDay();
-    const service = (search.get("servico") ?? "TrocaOleo") as ServiceType;
 
     const [clients, vehicles, page] = await Promise.all([
         listClients(),
@@ -48,7 +48,31 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
             : null
     ]);
 
-    return { clients, vehicles, day, service, appointments: page?.itens ?? [] };
+    return { clients, vehicles, day, appointments: page?.itens ?? [] };
+}
+
+// Trocar serviço ou horário não muda nada do lado do servidor: as faixas são calculadas aqui, com
+// os agendamentos que já vieram. Sem isto, cada clique num horário rebuscaria a lista de clientes
+// inteira — que a API ainda devolve sem paginar.
+export function shouldRevalidate(
+    { currentUrl, nextUrl, formMethod, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs
+) {
+    if (formMethod) return defaultShouldRevalidate;
+
+    const changed = (key: string) => currentUrl.searchParams.get(key) !== nextUrl.searchParams.get(key);
+
+    return changed("cliente") || changed("dia");
+}
+
+// Sem isto, uma falha ao buscar clientes sobe até a raiz e a pessoa perde o que já preencheu.
+export function ErrorBoundary() {
+    return (
+        <Card>
+            <StateError description="Não deu para abrir o formulário. Tente de novo em instantes.">
+                <Button variant="primary" onClick={() => location.reload()}>Tentar de novo</Button>
+            </StateError>
+        </Card>
+    );
 }
 
 // A recusa da API vira o aviso do formulário: as regras de negócio são dela, e a frase que ela
@@ -73,7 +97,7 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
 }
 
 export default function NewAppointment({ loaderData, actionData }: Route.ComponentProps) {
-    const { clients, vehicles, day, service, appointments } = loaderData;
+    const { clients, vehicles, day, appointments } = loaderData;
     const [search, setSearch] = useSearchParams();
     const { notify } = useNotification();
     const navigate = useNavigate();
@@ -82,6 +106,7 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
     const [noticeOpen, setNoticeOpen] = useState(true);
     const vehicleId = search.get("veiculo") ?? "";
     const time = search.get("hora") ?? "";
+    const service = (search.get("servico") ?? "TrocaOleo") as ServiceType;
     const slots = slotsOfDay(day, service, vehicleId, appointments);
 
     function change(fields: Record<string, string>) {
