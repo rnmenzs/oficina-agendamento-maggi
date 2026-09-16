@@ -16,9 +16,17 @@ const inWorkshop = new Intl.DateTimeFormat("sv-SE", {
 
 // O offset é lido do próprio fuso, e não fixado em -03:00: o Brasil não tem horário de verão
 // desde 2019, mas a regra pode voltar, e aí a conta muda sozinha.
-const offsetAt = (instant: Date) => new Intl.DateTimeFormat("en-US", {
-    timeZone: WORKSHOP_TIME_ZONE, timeZoneName: "longOffset"
-}).formatToParts(instant).find(part => part.type === "timeZoneName")?.value.replace("GMT", "") ?? "-03:00";
+function offsetAt(instant: Date): string {
+    const name = new Intl.DateTimeFormat("en-US", {
+        timeZone: WORKSHOP_TIME_ZONE, timeZoneName: "longOffset"
+    }).formatToParts(instant).find(part => part.type === "timeZoneName")?.value ?? "";
+
+    const offset = name.replace("GMT", "");
+
+    // Em UTC o Intl devolve só "GMT", e o que sobra é vazio: sem o formato certo, a data cairia no
+    // fuso do navegador sem avisar. Aí vale mais o deslocamento conhecido da oficina.
+    return /^[+-]\d{2}:\d{2}$/.test(offset) ? offset : "-03:00";
+}
 
 /** O dia e a hora que um instante representa na oficina: `["2026-09-16", "09:00"]`. */
 export function workshopParts(instant: Instant | Date): [Day, string] {
