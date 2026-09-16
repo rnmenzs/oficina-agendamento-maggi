@@ -1,0 +1,206 @@
+import { useEffect, useState } from "react";
+import { Form, useNavigate, useSearchParams } from "react-router";
+
+import { AppointmentSlots } from "~/components/appointment/AppointmentSlots";
+import { Button } from "~/components/common/button/Button";
+import { Card } from "~/components/common/card/Card";
+import { FormDate } from "~/components/common/forms/FormDate/FormDate";
+import { FormSearch } from "~/components/common/forms/FormSearch/FormSearch";
+import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
+import { Notification } from "~/components/common/notification/Notification";
+import { PageBreadcrumb } from "~/components/common/page/PageBreadcrumb";
+import { PageHeader } from "~/components/common/page/PageHeader";
+import { useNotification } from "~/hooks/useNotification";
+import { create, list as listAppointments } from "~/services/ServiceAppointment";
+import { list as listClients } from "~/services/ServiceClient";
+import { listOfClient } from "~/services/ServiceVehicle";
+import { ApiError } from "~/services/ServiceHttp";
+import type { ServiceType } from "~/types/TypeAppointment";
+import { formatDayLong, instantOf, toDay } from "~/utils/date";
+import { formatPhone } from "~/utils/phone";
+import { formatPlate } from "~/utils/plate";
+import { SERVICE_LABEL, SERVICE_MINUTES, SERVICE_TYPES } from "~/utils/service";
+import { isOpen, nextOpenDay, slotsOfDay } from "~/utils/schedule";
+import type { Route } from "./+types/route";
+
+const SERVICE_OPTIONS = SERVICE_TYPES.map(type => ({
+    value: type,
+    label: `${SERVICE_LABEL[type]} · ${SERVICE_MINUTES[type]} min`
+}));
+
+export function meta() {
+    return [{ title: "Novo agendamento · Oficina Maggi" }];
+}
+
+// O formulário mora na URL como o filtro da agenda: trocar cliente, serviço ou dia é o que traz
+// os veículos e a ocupação daquele dia, e recarregar não perde o que já foi preenchido.
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+    const search = new URL(request.url).searchParams;
+    const clientId = search.get("cliente") ?? "";
+    const day = search.get("dia") || nextOpenDay();
+    const service = (search.get("servico") ?? "TrocaOleo") as ServiceType;
+
+    const [clients, vehicles, page] = await Promise.all([
+        listClients(),
+        clientId ? listOfClient(clientId) : [],
+        isOpen(day)
+            ? listAppointments({ dataInicio: day, dataFim: day, pagina: 1, tamanhoDaPagina: 100 })
+            : null
+    ]);
+
+    return { clients, vehicles, day, service, appointments: page?.itens ?? [] };
+}
+
+// A recusa da API vira o aviso do formulário: as regras de negócio são dela, e a frase que ela
+// devolve já está escrita para quem lê.
+export async function clientAction({ request }: Route.ClientActionArgs) {
+    const form = await request.formData();
+
+    try {
+        const created = await create({
+            veiculoId: String(form.get("veiculoId") ?? ""),
+            tipoServico: String(form.get("tipoServico") ?? "") as ServiceType,
+            inicio: instantOf(String(form.get("dia") ?? ""), String(form.get("hora") ?? ""))
+        });
+
+        return { created, error: null };
+    } catch (error) {
+        return {
+            created: null,
+            error: error instanceof ApiError ? error.message : "Não foi possível agendar."
+        };
+    }
+}
+
+export default function NewAppointment({ loaderData, actionData }: Route.ComponentProps) {
+    const { clients, vehicles, day, service, appointments } = loaderData;
+    const [search, setSearch] = useSearchParams();
+    const { notify } = useNotification();
+    const navigate = useNavigate();
+
+    // O aviso da recusa some quando a pessoa fecha; sem isto o × da caixa não faria nada.
+    const [noticeOpen, setNoticeOpen] = useState(true);
+    const vehicleId = search.get("veiculo") ?? "";
+    const time = search.get("hora") ?? "";
+    const slots = slotsOfDay(day, service, vehicleId, appointments);
+
+    function change(fields: Record<string, string>) {
+        const next = new URLSearchParams(search);
+
+        for (const [key, value] of Object.entries(fields)) {
+            if (value) next.set(key, value); else next.delete(key);
+        }
+
+        setSearch(next, { replace: true, preventScrollReset: true });
+    }
+
+    // Criado: avisa e leva para a ficha. O aviso vive num contexto acima da rota, então ele
+    // sobrevive à troca de tela — é por isso que dá para avisar antes de navegar.
+    useEffect(() => {
+        setNoticeOpen(true);
+    }, [actionData]);
+
+    useEffect(() => {
+        if (!actionData?.created) return;
+
+        notify(`${formatPlate(actionData.created.placa)} agendado para ${formatDayLong(day)}, ${time}.`);
+        navigate(`/agendamentos/${actionData.created.id}`);
+    }, [actionData, day, time, notify, navigate]);
+
+    return (
+        <>
+            <PageBreadcrumb
+                trail={[{ label: "Agendamentos", to: "/agendamentos" }, { label: "Novo" }]}
+            />
+
+            <PageHeader title="Novo agendamento" subtitle="Escolha o veículo, o horário e o serviço." />
+
+            <Card>
+                <Form method="post" className="flex flex-col gap-5 p-5">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <FormSearch
+                            label="Cliente"
+                            placeholder="Buscar por nome, e-mail ou telefone"
+                            emptyLabel="Nenhum cliente com esse termo"
+                            options={clients.map(client => ({
+                                value: client.id,
+                                label: client.nome,
+                                detail: formatPhone(client.telefone)
+                            }))}
+                            defaultValue={search.get("cliente") ?? ""}
+                            onChange={value => change({ cliente: value, veiculo: "", hora: "" })}
+                        />
+
+                        <FormSelect
+                            label="Veículo"
+                            name="veiculoId"
+                            options={vehicles.map(vehicle => ({
+                                value: vehicle.id,
+                                label: `${formatPlate(vehicle.placa)} · ${vehicle.modelo} ${vehicle.ano}`
+                            }))}
+                            value={vehicleId}
+                            placeholder={vehicles.length ? "Escolher veículo" : "Escolha o cliente primeiro"}
+                            disabled={vehicles.length === 0}
+                            hint={search.get("cliente") && vehicles.length === 0
+                                ? "Este cliente não tem veículo cadastrado."
+                                : undefined}
+                            onChange={value => change({ veiculo: value, hora: "" })}
+                        />
+
+                        <FormSelect
+                            label="Serviço"
+                            name="tipoServico"
+                            options={SERVICE_OPTIONS}
+                            value={service}
+                            hint="A duração define quais horários cabem no dia."
+                            onChange={value => change({ servico: value, hora: "" })}
+                        />
+
+                        <FormDate
+                            label="Data"
+                            name="dia"
+                            value={day}
+                            min={toDay(new Date())}
+                            onChange={value => change({ dia: value, hora: "" })}
+                        />
+                    </div>
+
+                    <fieldset className="flex flex-col gap-2 border-0 p-0">
+                        <legend className="text-xs font-semibold tracking-wider text-muted uppercase">
+                            Horário
+                        </legend>
+
+                        {slots.length === 0
+                            ? (
+                                <p className="text-sm text-muted">
+                                    A oficina não atende em {formatDayLong(day)}.
+                                </p>
+                            )
+                            : (
+                                <AppointmentSlots
+                                    slots={slots}
+                                    value={time}
+                                    onChange={value => change({ hora: value })}
+                                />
+                            )}
+                    </fieldset>
+
+                    {actionData?.error && noticeOpen && (
+                        <Notification tone="error" onClose={() => setNoticeOpen(false)}>
+                            {actionData.error}
+                        </Notification>
+                    )}
+
+                    <input type="hidden" name="hora" value={time} />
+
+                    <div className="flex flex-wrap justify-end gap-2">
+                        <Button to="/agendamentos">Voltar</Button>
+                        <Button type="submit" variant="primary" disabled={!vehicleId || !time}>
+                            Agendar
+                        </Button>
+                    </div>
+                </Form>
+            </Card>
+        </>
+    );
+}
