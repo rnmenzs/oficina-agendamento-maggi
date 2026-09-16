@@ -10,6 +10,7 @@ import { StateEmpty } from "~/components/common/state/StateEmpty";
 import { StateError } from "~/components/common/state/StateError";
 import { TablePagination } from "~/components/common/table/TablePagination";
 import { PAGE_SIZES, readAppointmentFilter, useAppointmentFilter } from "~/hooks/useAppointmentFilter";
+import { useStatusActions } from "~/hooks/useStatusActions";
 import { list } from "~/services/ServiceAppointment";
 import { SHORTCUTS, type PeriodShortcut } from "~/utils/period";
 import type { Route } from "./+types/route";
@@ -43,6 +44,7 @@ export function ErrorBoundary() {
 
 export default function Appointments({ loaderData }: Route.ComponentProps) {
     const filter = useAppointmentFilter();
+    const { change } = useStatusActions();
     const navigation = useNavigation();
     const { page } = loaderData;
 
@@ -85,6 +87,7 @@ export default function Appointments({ loaderData }: Route.ComponentProps) {
                                 <AppointmentTable
                                     appointments={page.itens}
                                     linkTo={({ id }) => `/agendamentos/${id}`}
+                                    onAction={change}
                                 />
                                 <TablePagination
                                     page={page.pagina}

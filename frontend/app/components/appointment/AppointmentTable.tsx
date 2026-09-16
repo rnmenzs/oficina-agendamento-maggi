@@ -1,8 +1,8 @@
-import { Check, ChevronRight, Play, X, type LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { BadgePlate } from "../common/badge/BadgePlate";
 import { BadgeStatus } from "../common/badge/BadgeStatus";
-import { ButtonIcon, type IconTone } from "../common/button/ButtonIcon";
+import { ButtonIcon } from "../common/button/ButtonIcon";
 import { Table, type TableColumn } from "../common/table/Table";
 import { TableCell } from "../common/table/TableCell";
 import { TableRow } from "../common/table/TableRow";
@@ -10,21 +10,7 @@ import { Tooltip } from "../common/tooltip/Tooltip";
 import type { AppointmentResponse, AppointmentStatus } from "~/types/TypeAppointment";
 import { dayOf, formatDayShort, formatTime } from "~/utils/date";
 import { SERVICE_LABEL, SERVICE_MINUTES } from "~/utils/service";
-import { allowedTransitions } from "~/utils/status";
-
-type Action = {
-    label: string;
-    icon: LucideIcon;
-    tone: IconTone;
-};
-
-// Iniciar e concluir nunca aparecem juntos, então dividem a mesma posição na linha.
-const ADVANCE: Partial<Record<AppointmentStatus, Action>> = {
-    EmAndamento: { label: "Iniciar serviço", icon: Play, tone: "primary" },
-    Concluido: { label: "Concluir serviço", icon: Check, tone: "done" }
-};
-
-const CANCEL: Action = { label: "Cancelar agendamento", icon: X, tone: "danger" };
+import { actionsFor, type StatusAction } from "~/hooks/useStatusActions";
 
 // Sem largura fixa: quem decide é o conteúdo. Fixar as colunas espremia o nome do cliente em
 // duas linhas enquanto sobrava espaço na placa.
@@ -48,12 +34,14 @@ type AppointmentActionsProps = {
 
 // O lugar vago continua ocupando espaço: descendo a coluna, o mesmo ponto é sempre a mesma ação,
 // e a seta não anda de uma linha para a outra.
+// Iniciar e concluir nunca aparecem juntos, então dividem a mesma posição na linha.
 function AppointmentActions({ appointment, linkTo, onAction }: AppointmentActionsProps) {
-    const allowed = allowedTransitions(appointment.status);
-    const advance = allowed.find(status => ADVANCE[status]);
+    const allowed = actionsFor(appointment.status);
+    const cancel = allowed.find(action => action.to === "Cancelado");
+    const advance = allowed.find(action => action.to !== "Cancelado");
 
-    function button(to: AppointmentStatus | undefined, action: Action | undefined) {
-        if (!to || !action) return <span aria-hidden className="size-8" />;
+    function button(action: StatusAction | undefined) {
+        if (!action) return <span aria-hidden className="size-8" />;
 
         return (
             <Tooltip text={action.label}>
@@ -61,7 +49,7 @@ function AppointmentActions({ appointment, linkTo, onAction }: AppointmentAction
                     label={`${action.label} de ${appointment.placa}`}
                     icon={action.icon}
                     tone={action.tone}
-                    onClick={() => onAction?.(appointment, to)}
+                    onClick={() => onAction?.(appointment, action.to)}
                 />
             </Tooltip>
         );
@@ -69,8 +57,8 @@ function AppointmentActions({ appointment, linkTo, onAction }: AppointmentAction
 
     return (
         <span className="inline-flex items-center gap-1 align-middle">
-            {button("Cancelado", allowed.includes("Cancelado") ? CANCEL : undefined)}
-            {button(advance, advance && ADVANCE[advance])}
+            {button(cancel)}
+            {button(advance)}
 
             <span
                 aria-hidden
