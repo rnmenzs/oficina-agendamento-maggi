@@ -9,6 +9,14 @@ export const STATUS_LABEL: Record<AppointmentStatus, string> = {
 
 export const STATUSES = Object.keys(STATUS_LABEL) as readonly AppointmentStatus[];
 
+/** O que cada estado significou para a oficina, para o histórico não ser só uma lista de rótulos. */
+export const STATUS_MEANING: Record<AppointmentStatus, string> = {
+    Agendado: "O serviço entrou na agenda.",
+    EmAndamento: "O carro entrou na oficina.",
+    Concluido: "O serviço terminou.",
+    Cancelado: "A vaga foi liberada."
+};
+
 /** O status vem da URL, que qualquer um edita: sem conferir, `?status=Inexistente` viraria erro 400. */
 export function isStatus(valor: string): valor is AppointmentStatus {
     return (STATUSES as readonly string[]).includes(valor);
