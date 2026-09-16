@@ -15,6 +15,11 @@ import { FormRadio } from "~/components/common/forms/FormRadio";
 import { FormSearch, type FormSearchOption } from "~/components/common/forms/FormSearch/FormSearch";
 import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
 import { FormText } from "~/components/common/forms/FormText";
+import { Modal } from "~/components/common/modal/Modal";
+import { ModalProvider } from "~/components/common/modal/Modal.hook";
+import { ModalBody } from "~/components/common/modal/ModalBody";
+import { ModalFooter } from "~/components/common/modal/ModalFooter";
+import { ModalHeader } from "~/components/common/modal/ModalHeader";
 import { NavBar, type NavBarSection } from "~/components/common/navbar/NavBar";
 import { NavBarLink } from "~/components/common/navbar/NavBarLink";
 import { Notification, type NotificationTone } from "~/components/common/notification/Notification";
@@ -170,6 +175,68 @@ function PaginationSample() {
     const [page, setPage] = useState(1);
 
     return <TablePagination page={page} pageSize={20} total={137} onChange={setPage} />;
+}
+
+// As peças montadas fora do dialog: a moldura é feita de componentes comuns, e dá para vê-la
+// sem abrir nada. Só a casca precisa de clique.
+function ModalPreview() {
+    return (
+        <ModalProvider value={{ titleId: "exemplo-de-moldura", onClose: () => {} }}>
+            <div className="w-full max-w-120 overflow-hidden rounded-card border border-line bg-surface shadow-lg">
+                <ModalHeader
+                    title="Título da janela"
+                    description="A descrição é opcional e fica abaixo do título."
+                />
+
+                <ModalBody>
+                    <p className="text-sm text-muted">
+                        O corpo recebe qualquer conteúdo, inclusive um bloco de assunto inteiro. A
+                        janela não sabe o que vai aqui dentro.
+                    </p>
+                </ModalBody>
+
+                <ModalFooter>
+                    <Button variant="plain">Voltar</Button>
+                    <Button variant="primary">Confirmar</Button>
+                </ModalFooter>
+            </div>
+        </ModalProvider>
+    );
+}
+
+// Um estado só para as três: <dialog> abre na top layer, então duas abertas empilham.
+function ModalSample() {
+    const [aberta, setAberta] = useState<"narrow" | "medium" | "wide" | null>(null);
+    const fechar = () => setAberta(null);
+
+    return (
+        <div className="flex flex-wrap gap-3">
+            {(["narrow", "medium", "wide"] as const).map(largura => (
+                <Button key={largura} variant="plain" onClick={() => setAberta(largura)}>
+                    {largura}
+                </Button>
+            ))}
+
+            <Modal open={aberta !== null} width={aberta ?? "medium"} onClose={fechar}>
+                <ModalHeader
+                    title="Janela de exemplo"
+                    description={`Largura ${aberta ?? "medium"}. Escape, clique no fundo ou o × fecham.`}
+                />
+
+                <ModalBody>
+                    <p className="text-sm text-muted">
+                        O foco entra aqui: no primeiro campo do corpo, ou no primeiro botão do
+                        rodapé quando não há campo.
+                    </p>
+                </ModalBody>
+
+                <ModalFooter>
+                    <Button variant="plain" onClick={fechar}>Voltar</Button>
+                    <Button variant="primary" onClick={fechar}>Confirmar</Button>
+                </ModalFooter>
+            </Modal>
+        </div>
+    );
 }
 
 function DateRangeSample() {
@@ -468,6 +535,20 @@ export default function Catalogo() {
                         <Usage code="<FormText disabled />  e <FormText wide />, que atravessa a grade" layout="grid">
                             <FormText label="Placa" defaultValue="ABC1D23" disabled />
                             <FormText label="Observação" placeholder="Opcional" wide />
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="common/modal/">
+                    <Component name="Modal">
+                        <Usage
+                            code="<ModalHeader/> <ModalBody/> <ModalFooter/>  a moldura, fora do dialog para poder ser vista"
+                            layout="stack"
+                        >
+                            <ModalPreview />
+                        </Usage>
+                        <Usage code="<Modal open width onClose />  a casca: abre, prende o foco, fecha" layout="stack">
+                            <ModalSample />
                         </Usage>
                     </Component>
                 </Folder>
