@@ -1,6 +1,6 @@
 import { useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 
-import { FormField } from "./FormField";
+import { describedBy, FormField } from "./FormField";
 
 export type FormRadioOption = {
     value: string;
@@ -55,6 +55,8 @@ export function FormRadio({
                 role="radiogroup"
                 aria-labelledby={`${id}-label`}
                 aria-required={required}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={describedBy(id, error, hint)}
                 onKeyDown={onKeyDown}
                 className="flex flex-wrap gap-1.5"
             >

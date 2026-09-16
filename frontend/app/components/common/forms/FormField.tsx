@@ -12,6 +12,14 @@ type FormFieldProps = {
     children: ReactNode;
 };
 
+// O erro substitui a dica, então descreve uma coisa só. Sem isto o leitor de tela não anuncia nem
+// a dica nem o erro, e quem não enxerga envia o formulário sem saber o que está errado.
+export function describedBy(id: string, error?: string, hint?: ReactNode): string | undefined {
+    if (error) return `${id}-error`;
+
+    return hint ? `${id}-hint` : undefined;
+}
+
 export function FormField({
     id, label, hideLabel = false, group = false, required = false, hint, error, wide = false, children
 }: FormFieldProps) {
@@ -36,7 +44,7 @@ export function FormField({
 
             {error
                 ? <span id={`${id}-error`} className="text-xs font-medium text-error">{error}</span>
-                : hint && <span className="text-xs text-muted">{hint}</span>}
+                : hint && <span id={`${id}-hint`} className="text-xs text-muted">{hint}</span>}
         </div>
     );
 }

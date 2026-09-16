@@ -1,6 +1,6 @@
 import { useId, type ComponentProps, type ReactNode } from "react";
 
-import { FormField } from "./FormField";
+import { describedBy, FormField } from "./FormField";
 
 const BASE = `
     min-h-10 w-full rounded-sm border bg-surface px-2.5 py-2
@@ -26,7 +26,7 @@ export function FormText({ label, hint, error, wide, required, ...rest }: FormTe
                 id={id}
                 required={required}
                 aria-invalid={error ? true : undefined}
-                aria-describedby={error ? `${id}-error` : undefined}
+                aria-describedby={describedBy(id, error, hint)}
                 className={`${BASE} ${error ? "border-error bg-error-bg" : "border-line-strong"}`}
             />
         </FormField>

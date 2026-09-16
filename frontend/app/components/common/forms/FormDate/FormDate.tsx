@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import type { Day } from "~/types/TypeCommon";
 import { formatDay, monthGrid, monthLabel, toDay, WEEKDAY_INITIALS } from "~/utils/date";
-import { FormField } from "../FormField";
+import { describedBy, FormField } from "../FormField";
 import { useFormDate } from "./FormDate.hook";
 
 const BASE = `
@@ -73,6 +73,8 @@ export function FormDate({
                     aria-haspopup="dialog"
                     aria-expanded={calendar.open}
                     aria-required={required}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={describedBy(calendar.id, error, hint)}
                     onClick={calendar.toggle}
                     className={boxClasses(Boolean(error), disabled, calendar.open)}
                 >

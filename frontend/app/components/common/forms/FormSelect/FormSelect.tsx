@@ -1,7 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { FormField } from "../FormField";
+import { describedBy, FormField } from "../FormField";
 import { useFormSelect, type FormSelectOption } from "./FormSelect.hook";
 
 export type { FormSelectOption };
@@ -61,6 +61,8 @@ export function FormSelect({
                     disabled={disabled}
                     aria-haspopup="listbox"
                     aria-required={required}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={describedBy(select.id, error, hint)}
                     aria-expanded={select.open}
                     aria-controls={select.open ? select.listId : undefined}
                     aria-activedescendant={select.open ? select.optionId(select.active) : undefined}

@@ -1,7 +1,7 @@
 import { Search, X } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { FormField } from "../FormField";
+import { describedBy, FormField } from "../FormField";
 import { useFormSearch, type FormSearchOption } from "./FormSearch.hook";
 
 export type { FormSearchOption };
@@ -63,6 +63,7 @@ export function FormSearch({
                         aria-activedescendant={search.open ? `${search.listId}-${search.active}` : undefined}
                         aria-required={required}
                         aria-invalid={error ? true : undefined}
+                        aria-describedby={describedBy(search.id, error, hint)}
                         onChange={event => search.type(event.target.value)}
                         onFocus={search.openList}
                         onKeyDown={search.onKeyDown}
