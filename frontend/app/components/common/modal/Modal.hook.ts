@@ -34,8 +34,12 @@ export function useModal({ open, onClose }: UseModal) {
     const aberta = useRef(open);
     const fechar = useRef(onClose);
 
-    aberta.current = open;
-    fechar.current = onClose;
+    // Em efeito, não no corpo: escrever em ref durante o render é impuro, e um render descartado
+    // pela renderização concorrente deixaria o ref com valor que nunca foi confirmado.
+    useEffect(() => {
+        aberta.current = open;
+        fechar.current = onClose;
+    });
 
     useEffect(() => {
         const dialog = box.current;

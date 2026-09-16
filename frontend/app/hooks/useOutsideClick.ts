@@ -6,10 +6,13 @@ export function useOutsideClick(
     onClose: () => void
 ) {
     // Quem chama costuma passar uma função nova a cada render. Sem o ref, os ouvintes sairiam e
-    // voltariam a cada tecla digitada.
+    // voltariam a cada tecla digitada. A escrita vai num efeito porque o corpo do render tem que
+    // ser puro: um render descartado deixaria o ref com valor que nunca foi confirmado.
     const fechar = useRef(onClose);
 
-    fechar.current = onClose;
+    useEffect(() => {
+        fechar.current = onClose;
+    });
 
     useEffect(() => {
         if (!active) return;

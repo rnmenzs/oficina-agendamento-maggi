@@ -132,11 +132,9 @@ export function FormDate({
                             ))}
                         </div>
 
-                        <div role="grid" className="grid grid-cols-7">
+                        <div role="grid">
                             {monthGrid(calendar.month).map((week, at) => (
-                                // "contents" deixa a linha existir para o leitor de tela sem
-                                // atrapalhar a grade do CSS.
-                                <div key={at} role="row" className="contents">
+                                <div key={at} role="row" className="grid grid-cols-7">
                                     {week.map(date => {
                                         const day = toDay(date);
                                         const chosen = day === calendar.current;
