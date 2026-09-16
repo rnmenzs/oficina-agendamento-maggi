@@ -42,23 +42,31 @@ export function NotificationRegion({ notifications, onClose }: NotificationRegio
     }, [notifications]);
 
     return (
-        <div
-            ref={region}
-            aria-live="polite"
-            className="pointer-events-none fixed inset-x-0 top-auto bottom-0 z-50 m-0 h-auto w-auto
-                flex flex-col items-center gap-2 border-0 bg-transparent p-4 sm:items-end"
-        >
-            {notifications.map(item => (
-                <div
-                    key={item.id}
-                    className="pointer-events-auto w-full max-w-sm transition-all duration-200
-                        starting:translate-y-2 starting:opacity-0"
-                >
-                    <Notification tone={item.tone} onClose={() => onClose(item.id)}>
-                        {item.text}
-                    </Notification>
-                </div>
-            ))}
-        </div>
+        <>
+            {/* Quem anuncia é esta região, que nunca sai do lugar. A visual entra e sai da árvore
+                de acessibilidade a cada aviso, porque é assim que ela sobe para a camada de topo,
+                e o leitor de tela perde o anúncio quando isso acontece no meio da leitura. */}
+            <div aria-live="polite" className="sr-only">
+                {notifications.map(item => <p key={item.id}>{item.text}</p>)}
+            </div>
+
+            <div
+                ref={region}
+                className="pointer-events-none fixed inset-x-0 top-auto bottom-0 z-50 m-0 h-auto
+                    w-auto flex flex-col items-center gap-2 border-0 bg-transparent p-4 sm:items-end"
+            >
+                {notifications.map(item => (
+                    <div
+                        key={item.id}
+                        className="pointer-events-auto w-full max-w-sm transition-all duration-200
+                            starting:translate-y-2 starting:opacity-0"
+                    >
+                        <Notification tone={item.tone} onClose={() => onClose(item.id)}>
+                            {item.text}
+                        </Notification>
+                    </div>
+                ))}
+            </div>
+        </>
     );
 }
