@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { ModalProvider, useModal } from "./Modal.hook";
+import { ModalControlProvider, useDialog } from "./Modal.hook";
 
 const WIDTH = {
     narrow: "sm:max-w-100",
@@ -27,7 +27,7 @@ type ModalProps = {
 };
 
 export function Modal({ open, width = "medium", label, onClose, children }: ModalProps) {
-    const modal = useModal({ open, onClose });
+    const modal = useDialog({ open, onClose });
 
     return (
         <dialog
@@ -39,9 +39,9 @@ export function Modal({ open, width = "medium", label, onClose, children }: Moda
             onClick={modal.onClick}
             className={`${BASE} ${WIDTH[width]}`}
         >
-            <ModalProvider value={{ titleId: modal.titleId, onClose }}>
+            <ModalControlProvider value={{ titleId: modal.titleId, onClose }}>
                 {children}
-            </ModalProvider>
+            </ModalControlProvider>
         </dialog>
     );
 }

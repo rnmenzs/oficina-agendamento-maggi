@@ -11,24 +11,24 @@ type ModalControl = {
 
 // As peças da janela precisam do mesmo fechar e do mesmo id de título. Sem isto, quem monta
 // passaria a função duas vezes e escreveria o título duas vezes.
-const ModalContext = createContext<ModalControl | null>(null);
+const ModalControlContext = createContext<ModalControl | null>(null);
 
-export const ModalProvider = ModalContext.Provider;
+export const ModalControlProvider = ModalControlContext.Provider;
 
 export function useModalControl(): ModalControl {
-    const control = useContext(ModalContext);
+    const control = useContext(ModalControlContext);
 
     if (!control) throw new Error("As peças da janela só funcionam dentro de um Modal.");
 
     return control;
 }
 
-type UseModal = {
+type UseDialog = {
     open: boolean;
     onClose: () => void;
 };
 
-export function useModal({ open, onClose }: UseModal) {
+export function useDialog({ open, onClose }: UseDialog) {
     const box = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const aberta = useRef(open);

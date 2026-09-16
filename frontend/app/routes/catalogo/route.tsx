@@ -18,7 +18,7 @@ import { FormSearch, type FormSearchOption } from "~/components/common/forms/For
 import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
 import { FormText } from "~/components/common/forms/FormText";
 import { Modal } from "~/components/common/modal/Modal";
-import { ModalProvider } from "~/components/common/modal/Modal.hook";
+import { ModalControlProvider } from "~/components/common/modal/Modal.hook";
 import { ModalBody } from "~/components/common/modal/ModalBody";
 import { ModalFooter } from "~/components/common/modal/ModalFooter";
 import { ModalHeader } from "~/components/common/modal/ModalHeader";
@@ -193,7 +193,7 @@ function PaginationSample() {
 // sem abrir nada. Só a casca precisa de clique.
 function ModalPreview() {
     return (
-        <ModalProvider value={{ titleId: "exemplo-de-moldura", onClose: () => {} }}>
+        <ModalControlProvider value={{ titleId: "exemplo-de-moldura", onClose: () => {} }}>
             <div className="w-full max-w-120 overflow-hidden rounded-card border border-line bg-surface shadow-lg">
                 <ModalHeader
                     title="Título da janela"
@@ -212,7 +212,7 @@ function ModalPreview() {
                     <Button variant="primary">Confirmar</Button>
                 </ModalFooter>
             </div>
-        </ModalProvider>
+        </ModalControlProvider>
     );
 }
 
