@@ -43,6 +43,11 @@ export function formatDayShort(day: Day): string {
     return `${dia}/${mes} ${SHORT_WEEKDAYS[data.getDay()]}`;
 }
 
+/** Dia com o da semana na frente: "qua, 16/09/2026". É como a confirmação mostra a data. */
+export function formatDayWithWeekday(day: Day): string {
+    return `${SHORT_WEEKDAYS[fromDay(day).getDay()]}, ${formatDay(day)}`;
+}
+
 /** Dia por extenso, para o subtítulo da agenda: "quarta-feira, 16 de setembro de 2026". */
 export function formatDayLong(day: Day): string {
     return fromDay(day).toLocaleDateString("pt-BR", {

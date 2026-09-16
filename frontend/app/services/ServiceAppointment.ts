@@ -1,6 +1,7 @@
 import type {
-    AppointmentDetailResponse, AppointmentFilter, AppointmentResponse
+    AppointmentDetailResponse, AppointmentFilter, AppointmentResponse, AppointmentStatus
 } from "~/types/TypeAppointment";
+import type { Id } from "~/types/TypeCommon";
 import type { PageResponse } from "~/types/TypePage";
 import { request } from "./ServiceHttp";
 
@@ -20,4 +21,10 @@ export function list(filter: AppointmentFilter): Promise<PageResponse<Appointmen
 
 export function get(id: string): Promise<AppointmentDetailResponse> {
     return request(`/agendamentos/${id}`);
+}
+
+// Um endpoint de status para as três ações: o que muda é sempre o mesmo campo, e quais transições
+// valem é regra do domínio — a tela oferece, a API decide.
+export function changeStatus(id: Id, status: AppointmentStatus): Promise<AppointmentResponse> {
+    return request(`/agendamentos/${id}/status`, { method: "PATCH", body: { status } });
 }

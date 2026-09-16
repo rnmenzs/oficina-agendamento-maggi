@@ -1,6 +1,7 @@
 import { useNavigation } from "react-router";
 
 import { AppointmentFilters } from "~/components/appointment/AppointmentFilters";
+import { AppointmentSummary } from "~/components/appointment/AppointmentSummary";
 import { AppointmentTable } from "~/components/appointment/AppointmentTable";
 import { Button } from "~/components/common/button/Button";
 import { Card } from "~/components/common/card/Card";
@@ -10,6 +11,7 @@ import { StateEmpty } from "~/components/common/state/StateEmpty";
 import { StateError } from "~/components/common/state/StateError";
 import { TablePagination } from "~/components/common/table/TablePagination";
 import { PAGE_SIZES, readAppointmentFilter, useAppointmentFilter } from "~/hooks/useAppointmentFilter";
+import { useStatusActions } from "~/hooks/useStatusActions";
 import { list } from "~/services/ServiceAppointment";
 import { SHORTCUTS, type PeriodShortcut } from "~/utils/period";
 import type { Route } from "./+types/route";
@@ -43,6 +45,9 @@ export function ErrorBoundary() {
 
 export default function Appointments({ loaderData }: Route.ComponentProps) {
     const filter = useAppointmentFilter();
+    const { change, busy } = useStatusActions({
+        summaryOf: appointment => <AppointmentSummary appointment={appointment} />
+    });
     const navigation = useNavigation();
     const { page } = loaderData;
 
@@ -85,6 +90,8 @@ export default function Appointments({ loaderData }: Route.ComponentProps) {
                                 <AppointmentTable
                                     appointments={page.itens}
                                     linkTo={({ id }) => `/agendamentos/${id}`}
+                                    busy={busy}
+                                    onAction={change}
                                 />
                                 <TablePagination
                                     page={page.pagina}
