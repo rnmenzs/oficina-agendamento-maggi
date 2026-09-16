@@ -1,8 +1,13 @@
 import { Check, ChevronRight, Play, X } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { BadgePlate } from "~/components/badge/BadgePlate";
+import { BadgeStatus } from "~/components/badge/BadgeStatus";
 import { Button } from "~/components/button/Button";
 import { ButtonIcon } from "~/components/button/ButtonIcon";
+import type { AppointmentStatus } from "~/types/TypeAppointment";
+
+const STATUSES: readonly AppointmentStatus[] = ["Agendado", "EmAndamento", "Concluido", "Cancelado"];
 
 export function meta() {
     return [{ title: "Catálogo de componentes" }];
@@ -77,6 +82,26 @@ export default function Catalogo() {
                     </Usage>
                     <Usage code='<ButtonIcon to="..." label="Abrir agendamento" icon={ChevronRight} />'>
                         <ButtonIcon to="/catalogo" label="Abrir agendamento" icon={ChevronRight} />
+                    </Usage>
+                </Component>
+            </Folder>
+
+            <Folder path="badge/">
+                <Component name="BadgePlate">
+                    <Usage code='<BadgePlate plate="ABC1234" />  formato antigo, ganha hífen'>
+                        <BadgePlate plate="ABC1234" />
+                    </Usage>
+                    <Usage code='<BadgePlate plate="ABC1D23" />  Mercosul, fica sem hífen'>
+                        <BadgePlate plate="ABC1D23" />
+                    </Usage>
+                    <Usage code='<BadgePlate plate="abc-1234" />  normaliza o que vier'>
+                        <BadgePlate plate="abc-1234" />
+                    </Usage>
+                </Component>
+
+                <Component name="BadgeStatus">
+                    <Usage code="<BadgeStatus status={...} />  os quatro status">
+                        {STATUSES.map(status => <BadgeStatus key={status} status={status} />)}
                     </Usage>
                 </Component>
             </Folder>

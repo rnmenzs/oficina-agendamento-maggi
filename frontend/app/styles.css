@@ -18,10 +18,10 @@
     --color-scheduled-bg: #FDF3E3;
     --color-running: #0F766E;
     --color-running-bg: #E2F3F1;
-    --color-done: #15803D;
+    --color-done: #166534;
     --color-done-bg: #E6F4EA;
-    --color-cancelled: #6B7280;
-    --color-cancelled-bg: #EFF1F4;
+    --color-cancelled: #B42318;
+    --color-cancelled-bg: #FDECEA;
 
     --color-error: #B42318;
     --color-error-bg: #FDECEA;
