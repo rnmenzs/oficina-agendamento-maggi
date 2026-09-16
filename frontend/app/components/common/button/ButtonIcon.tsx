@@ -33,7 +33,8 @@ export function ButtonIcon({
     const styles = `${BASE} ${TONE[tone]}`;
     const glyph = <Icon size={size} aria-hidden />;
 
-    if (to) {
+    // Desabilitado vence o "to": <a> ignora o atributo disabled, e o link ficaria clicável.
+    if (to && !disabled) {
         return <Link to={to} title={label} aria-label={label} className={styles}>{glyph}</Link>;
     }
 

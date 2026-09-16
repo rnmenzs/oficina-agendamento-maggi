@@ -63,6 +63,7 @@ export function FormSelect({
                     aria-required={required}
                     aria-expanded={select.open}
                     aria-controls={select.open ? select.listId : undefined}
+                    aria-activedescendant={select.open ? select.optionId(select.active) : undefined}
                     onClick={select.toggle}
                     onKeyDown={select.onKeyDown}
                     className={boxClasses(Boolean(error), disabled, select.open)}
@@ -86,15 +87,17 @@ export function FormSelect({
                             overflow-y-auto rounded-card border border-line-strong bg-surface p-1
                             shadow-lg"
                     >
-                        {options.map(option => (
+                        {options.map((option, at) => (
                             <li
                                 key={option.value}
+                                id={select.optionId(at)}
                                 role="option"
                                 aria-selected={option.value === select.current}
+                                onMouseEnter={() => select.setActive(at)}
                                 onClick={() => select.choose(option)}
                                 className={`cursor-pointer rounded-sm px-2.5 py-2 text-sm whitespace-nowrap
-                                    hover:bg-surface-alt ${option.value === select.current
-                                        ? "bg-primary-soft font-semibold text-primary" : ""}`}
+                                    ${at === select.active ? "bg-primary-soft text-primary" : ""}
+                                    ${option.value === select.current ? "font-semibold" : ""}`}
                             >
                                 {option.label}
                             </li>

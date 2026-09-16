@@ -146,7 +146,7 @@ export function FormDate({
                                                 type="button"
                                                 role="gridcell"
                                                 data-day={day}
-                                                disabled={barred}
+                                                aria-disabled={barred}
                                                 tabIndex={day === calendar.cursor ? 0 : -1}
                                                 aria-selected={chosen}
                                                 aria-current={day === calendar.today ? "date" : undefined}

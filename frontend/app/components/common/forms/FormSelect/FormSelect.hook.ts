@@ -17,6 +17,7 @@ type UseFormSelect = {
 export function useFormSelect({ options, value, defaultValue, onChange }: UseFormSelect) {
     const [internal, setInternal] = useState(defaultValue ?? "");
     const [open, setOpen] = useState(false);
+    const [active, setActive] = useState(0);
     const box = useRef<HTMLDivElement>(null);
     const id = useId();
 
@@ -31,25 +32,38 @@ export function useFormSelect({ options, value, defaultValue, onChange }: UseFor
         setOpen(false);
     }
 
+    // Abrir posiciona o destaque no que já está escolhido, não no primeiro da lista.
+    function toggle() {
+        setActive(Math.max(0, options.findIndex(option => option.value === current)));
+        setOpen(aberto => !aberto);
+    }
+
     function onKeyDown(event: KeyboardEvent) {
-        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
 
-        event.preventDefault();
+            if (!open) return toggle();
 
-        if (!open) return setOpen(true);
+            // Só move o destaque. Escolher aqui fecharia a lista na primeira seta, e quem usa
+            // teclado não conseguiria passar por cima das opções para ver o que existe.
+            const passo = event.key === "ArrowDown" ? 1 : -1;
 
-        const at = options.findIndex(option => option.value === current);
-        const next = event.key === "ArrowDown"
-            ? Math.min(at + 1, options.length - 1)
-            : Math.max(at - 1, 0);
+            return setActive(at => (at + passo + options.length) % options.length);
+        }
 
-        const option = options[next];
-        if (option) choose(option);
+        if (event.key === "Enter" || event.key === " ") {
+            if (!open) return;
+
+            event.preventDefault();
+
+            const option = options[active];
+            if (option) choose(option);
+        }
     }
 
     return {
-        id, box, open, current, chosen, choose, onKeyDown,
+        id, box, open, active, current, chosen, choose, toggle, onKeyDown, setActive,
         listId: `${id}-lista`,
-        toggle: () => setOpen(aberto => !aberto)
+        optionId: (at: number) => `${id}-opcao-${at}`
     };
 }

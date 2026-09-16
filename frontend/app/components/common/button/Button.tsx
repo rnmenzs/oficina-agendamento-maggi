@@ -33,7 +33,8 @@ export function Button({
 }: ButtonProps) {
     const styles = `${BASE} ${VARIANT[variant]}${className ? ` ${className}` : ""}`;
 
-    if (to) return <Link to={to} title={title} className={styles}>{children}</Link>;
+    // Desabilitado vence o "to": <a> ignora o atributo disabled, e o link ficaria clicável.
+    if (to && !disabled) return <Link to={to} title={title} className={styles}>{children}</Link>;
 
     return (
         <button type={type} disabled={disabled} title={title} onClick={onClick} className={styles}>
