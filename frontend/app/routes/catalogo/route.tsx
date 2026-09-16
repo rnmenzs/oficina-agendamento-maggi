@@ -15,6 +15,8 @@ import { FormRadio } from "~/components/forms/FormRadio";
 import { FormSearch, type FormSearchOption } from "~/components/forms/FormSearch/FormSearch";
 import { FormSelect } from "~/components/forms/FormSelect/FormSelect";
 import { FormText } from "~/components/forms/FormText";
+import { NavBar, type NavBarSection } from "~/components/navbar/NavBar";
+import { NavBarLink } from "~/components/navbar/NavBarLink";
 import { Notification, type NotificationTone } from "~/components/notification/Notification";
 import { Skeleton } from "~/components/skeleton/Skeleton";
 import { SkeletonTable } from "~/components/skeleton/SkeletonTable";
@@ -28,6 +30,11 @@ import { Tooltip } from "~/components/tooltip/Tooltip";
 import type { AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
 import { SERVICE_LABEL } from "~/utils/service";
 import { STATUS_LABEL } from "~/utils/status";
+
+const SECTIONS: readonly NavBarSection[] = [
+    { to: "/agendamentos", label: "Agendamentos" },
+    { to: "/clientes", label: "Clientes" }
+];
 
 const STATUSES: readonly AppointmentStatus[] = ["Agendado", "EmAndamento", "Concluido", "Cancelado"];
 
@@ -461,6 +468,27 @@ export default function Catalogo() {
                         <Usage code="<FormText disabled />  e <FormText wide />, que atravessa a grade" layout="grid">
                             <FormText label="Placa" defaultValue="ABC1D23" disabled />
                             <FormText label="Observação" placeholder="Opcional" wide />
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="navbar/">
+                    <Component name="NavBar">
+                        <Usage
+                            code="<NavBar home sections />  as rotas vêm de fora; a seção atual se marca sozinha pela URL"
+                            layout="stack"
+                        >
+                            <div className="w-full overflow-hidden rounded-card border border-line">
+                                <NavBar home="/agendamentos" sections={SECTIONS} />
+                            </div>
+                        </Usage>
+                    </Component>
+
+                    <Component name="NavBarLink">
+                        <Usage code="<NavBarLink to>  NavLink por dentro: o ativo vem da URL, e o aria-current é dele">
+                            <NavBarLink to="/catalogo">Esta rota, então ativo</NavBarLink>
+                            <NavBarLink to="/agendamentos">Agendamentos</NavBarLink>
+                            <NavBarLink to="/clientes">Clientes</NavBarLink>
                         </Usage>
                     </Component>
                 </Folder>
