@@ -27,7 +27,7 @@ export function Table({ columns, children }: TableProps) {
                             <th
                                 key={key}
                                 scope="col"
-                                className={`border-b border-line bg-surface-alt px-4 py-2.5 text-xs
+                                className={`border-b border-line bg-surface-alt px-4 py-2 text-xs
                                     font-semibold tracking-widest text-muted uppercase whitespace-nowrap
                                     ${right ? "text-right" : "text-left"}`}
                             >

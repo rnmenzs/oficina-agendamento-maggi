@@ -14,7 +14,7 @@ export default function AppLayout() {
         <>
             <NavBar home="/agendamentos" sections={SECTIONS} />
 
-            <main className="mx-auto flex max-w-6xl flex-col gap-4 px-5 pt-6 pb-12">
+            <main className="mx-auto flex max-w-6xl flex-col gap-3 px-5 pt-5 pb-4">
                 <Outlet />
             </main>
         </>
