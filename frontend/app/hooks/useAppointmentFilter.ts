@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 import type { AppointmentFilter, AppointmentStatus } from "~/types/TypeAppointment";
 import type { DayRange } from "~/types/TypeCommon";
 import { periodLabel, periodOf, shortcutOf, SHORTCUTS, type PeriodShortcut } from "~/utils/period";
+import { isStatus } from "~/utils/status";
 
 export const PAGE_SIZES = [10, 20, 50] as const;
 
@@ -22,6 +23,17 @@ function lerTamanho(busca: URLSearchParams): number {
 
 // O período aparece na URL como atalho (`?periodo=semana`) ou como as duas datas escolhidas no
 // calendário. Sem nenhum dos dois a agenda abre no dia de hoje, que é o que se quer ver ao chegar.
+// Página também vem da URL: negativa, o backend recusaria com 400 e a tela cairia no ErrorBoundary.
+function lerPagina(busca: URLSearchParams): number {
+    return Math.max(1, Math.trunc(Number(busca.get("pagina"))) || 1);
+}
+
+function lerStatus(busca: URLSearchParams): AppointmentStatus | "" {
+    const status = busca.get("status") ?? "";
+
+    return isStatus(status) ? status : "";
+}
+
 function lerPeriodo(busca: URLSearchParams, hoje: Date): DayRange {
     const atalho = busca.get("periodo");
     if (ehAtalho(atalho)) return periodOf(atalho, hoje);
@@ -39,8 +51,8 @@ export function readAppointmentFilter(busca: URLSearchParams, hoje = new Date())
     return {
         dataInicio: periodo.from || undefined,
         dataFim: periodo.to || undefined,
-        status: (busca.get("status") as AppointmentStatus) || undefined,
-        pagina: Number(busca.get("pagina")) || 1,
+        status: lerStatus(busca) || undefined,
+        pagina: lerPagina(busca),
         tamanhoDaPagina: lerTamanho(busca)
     };
 }
@@ -82,7 +94,7 @@ export function useAppointmentFilter() {
 
     // A tela abre em hoje, sem nada na URL, e hoje também é um filtro: perguntar "há filtro?"
     // deixaria o "Limpar" aceso desde o primeiro segundo, sem nada para desfazer.
-    const status = busca.get("status") ?? "";
+    const status = lerStatus(busca);
     const atalho = shortcutOf(periodo, hoje);
 
     return {

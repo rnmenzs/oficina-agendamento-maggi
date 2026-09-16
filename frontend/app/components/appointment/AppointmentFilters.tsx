@@ -2,14 +2,11 @@ import { Button } from "../common/button/Button";
 import { FormDateRange } from "../common/forms/FormDateRange/FormDateRange";
 import { FormRadio } from "../common/forms/FormRadio";
 import { FormSelect } from "../common/forms/FormSelect/FormSelect";
-import type { AppointmentStatus } from "~/types/TypeAppointment";
 import type { DayRange } from "~/types/TypeCommon";
 import { SHORTCUTS, type PeriodShortcut } from "~/utils/period";
-import { STATUS_LABEL } from "~/utils/status";
+import { STATUS_LABEL, STATUSES } from "~/utils/status";
 
-const STATUS: readonly AppointmentStatus[] = ["Agendado", "EmAndamento", "Concluido", "Cancelado"];
-
-const OPCOES = STATUS.map(status => ({ value: status, label: STATUS_LABEL[status] }));
+const OPCOES = STATUSES.map(status => ({ value: status, label: STATUS_LABEL[status] }));
 
 type AppointmentFiltersProps = {
     atalho: PeriodShortcut | null;
