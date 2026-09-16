@@ -1,6 +1,6 @@
 import type { Id, Instant } from "./TypeCommon";
 
-export interface VehicleResponse {
+export type VehicleResponse = {
     id: Id;
     clienteId: Id;
     placa: string;
@@ -8,10 +8,10 @@ export interface VehicleResponse {
     ano: number;
     criadoEm: Instant;
     atualizadoEm: Instant;
-}
+};
 
-export interface CreateVehicleRequest {
+export type CreateVehicleRequest = {
     placa: string;
     modelo: string;
     ano: number;
-}
+};
