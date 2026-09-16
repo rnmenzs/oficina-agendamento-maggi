@@ -1,5 +1,6 @@
 import type {
-    AppointmentDetailResponse, AppointmentFilter, AppointmentResponse, AppointmentStatus
+    AppointmentDetailResponse, AppointmentFilter, AppointmentResponse, AppointmentStatus,
+    CreateAppointmentRequest
 } from "~/types/TypeAppointment";
 import type { Id } from "~/types/TypeCommon";
 import type { PageResponse } from "~/types/TypePage";
@@ -17,6 +18,10 @@ export function list(filter: AppointmentFilter): Promise<PageResponse<Appointmen
             tamanhoDaPagina: filter.tamanhoDaPagina
         }
     });
+}
+
+export function create(appointment: CreateAppointmentRequest): Promise<AppointmentResponse> {
+    return request("/agendamentos", { method: "POST", body: appointment });
 }
 
 export function get(id: string): Promise<AppointmentDetailResponse> {
