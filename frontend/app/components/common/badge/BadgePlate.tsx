@@ -1,7 +1,7 @@
 import { formatPlate, isMercosulPlate } from "~/utils/plate";
 
 const BASE = `
-    inline-block rounded-sm border border-line-strong bg-surface-alt
+    inline-block align-middle rounded-sm border border-line-strong bg-surface-alt
     px-2 py-0.5 font-mono text-sm font-medium tracking-widest
     uppercase whitespace-nowrap
 `;
