@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+    --color-ground: #F4F6F9;
+    --color-surface: #FFFFFF;
+    --color-surface-alt: #FAFAFB;
+    --color-ink: #16191C;
+    --color-muted: #4C5155;
+    --color-line: #E1E4E7;
+    --color-line-strong: #C6CBD0;
+
+    --color-primary: #1473E6;
+    --color-primary-strong: #003DA5;
+    --color-primary-soft: #E8F1FD;
+    --color-on-primary: #FFFFFF;
+
+    --color-scheduled: #B45309;
+    --color-scheduled-bg: #FDF3E3;
+    --color-running: #0F766E;
+    --color-running-bg: #E2F3F1;
+    --color-done: #15803D;
+    --color-done-bg: #E6F4EA;
+    --color-cancelled: #6B7280;
+    --color-cancelled-bg: #EFF1F4;
+
+    --color-error: #B42318;
+    --color-error-bg: #FDECEA;
+
+    --font-sans: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+    --radius-card: 8px;
+}
+
+@layer base {
+    :root {
+        color-scheme: light;
+    }
+
+    body {
+        background: var(--color-ground);
+        color: var(--color-ink);
+        font-family: var(--font-sans);
+        font-size: 15px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+        border-radius: 2px;
+    }
+
+    [hidden] {
+        display: none !important;
+    }
+}
