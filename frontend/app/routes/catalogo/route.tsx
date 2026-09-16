@@ -20,6 +20,10 @@ import { Skeleton } from "~/components/skeleton/Skeleton";
 import { SkeletonTable } from "~/components/skeleton/SkeletonTable";
 import { StateEmpty } from "~/components/state/StateEmpty";
 import { StateError } from "~/components/state/StateError";
+import { Table, type TableColumn } from "~/components/table/Table";
+import { TableCell } from "~/components/table/TableCell";
+import { TablePagination } from "~/components/table/TablePagination";
+import { TableRow } from "~/components/table/TableRow";
 import type { AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
 import { SERVICE_LABEL } from "~/utils/service";
 import { STATUS_LABEL } from "~/utils/status";
@@ -115,6 +119,49 @@ function NotificationSample() {
             <Button variant="plain" onClick={() => setNotes(INITIAL_NOTES)}>Repor os avisos</Button>
         </div>
     );
+}
+
+const COLUMNS: readonly TableColumn[] = [
+    { key: "placa", label: "Placa", width: "8rem" },
+    { key: "cliente", label: "Cliente" },
+    { key: "servico", label: "Serviço", width: "10rem" },
+    { key: "status", label: "Status", width: "10rem" },
+    { key: "acoes", label: "Ações", hidden: true, right: true, width: "4rem" }
+];
+
+const ROWS = [
+    { placa: "ABC1234", cliente: "Marina Alves", servico: "Revisao", status: "Agendado" },
+    { placa: "ABC1D23", cliente: "Carlos Eduardo Menezes", servico: "TrocaOleo", status: "EmAndamento" },
+    { placa: "XYZ9876", cliente: "Ana Paula Souza", servico: "Diagnostico", status: "Concluido" },
+    { placa: "QRS4D56", cliente: "José Antônio Ribeiro", servico: "Revisao", status: "Cancelado" }
+] as const;
+
+function TableCard({ children }: { children: ReactNode }) {
+    return (
+        <div className="w-full overflow-hidden rounded-card border border-line bg-surface">
+            {children}
+        </div>
+    );
+}
+
+function Rows({ take }: { take: number }) {
+    return ROWS.slice(0, take).map(row => (
+        <TableRow key={row.placa}>
+            <TableCell><BadgePlate plate={row.placa} /></TableCell>
+            <TableCell strong>{row.cliente}</TableCell>
+            <TableCell>{SERVICE_LABEL[row.servico]}</TableCell>
+            <TableCell><BadgeStatus status={row.status} /></TableCell>
+            <TableCell right>
+                <ButtonIcon to="/catalogo" label="Abrir agendamento" icon={ChevronRight} />
+            </TableCell>
+        </TableRow>
+    ));
+}
+
+function PaginationSample() {
+    const [page, setPage] = useState(1);
+
+    return <TablePagination page={page} pageSize={20} total={137} onChange={setPage} />;
 }
 
 function DateRangeSample() {
@@ -498,6 +545,36 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
+                <Folder path="table/">
+                    <Component name="Table">
+                        <Usage
+                            code="<Table columns>{<TableRow><TableCell/></TableRow>}</Table>  largura pelo colgroup, ações com rótulo só para o leitor de tela"
+                            layout="stack"
+                        >
+                            <TableCard>
+                                <Table columns={COLUMNS}><Rows take={4} /></Table>
+                            </TableCard>
+                        </Usage>
+                    </Component>
+
+                    <Component name="TablePagination">
+                        <Usage
+                            code="<TablePagination page pageSize total onChange />  vive colado embaixo da tabela: o border-t dele é a única linha entre as duas"
+                            layout="stack"
+                        >
+                            <TableCard>
+                                <Table columns={COLUMNS}><Rows take={2} /></Table>
+                                <PaginationSample />
+                            </TableCard>
+                        </Usage>
+                        <Usage code="na última página, com a Próxima desligada" layout="stack">
+                            <TableCard>
+                                <Table columns={COLUMNS}><Rows take={2} /></Table>
+                                <TablePagination page={7} pageSize={20} total={137} onChange={() => {}} />
+                            </TableCard>
+                        </Usage>
+                    </Component>
+                </Folder>
             </main>
         </div>
     );
