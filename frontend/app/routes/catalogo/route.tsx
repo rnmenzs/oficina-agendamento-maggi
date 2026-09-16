@@ -24,6 +24,7 @@ import { Table, type TableColumn } from "~/components/table/Table";
 import { TableCell } from "~/components/table/TableCell";
 import { TablePagination } from "~/components/table/TablePagination";
 import { TableRow } from "~/components/table/TableRow";
+import { Tooltip } from "~/components/tooltip/Tooltip";
 import type { AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
 import { SERVICE_LABEL } from "~/utils/service";
 import { STATUS_LABEL } from "~/utils/status";
@@ -571,6 +572,44 @@ export default function Catalogo() {
                             <TableCard>
                                 <Table columns={COLUMNS}><Rows take={2} /></Table>
                                 <TablePagination page={7} pageSize={20} total={137} onChange={() => {}} />
+                            </TableCard>
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="tooltip/">
+                    <Component name="Tooltip">
+                        <Usage code="<Tooltip text>{gatilho}</Tooltip>  passe o mouse, ou chegue pelo Tab">
+                            <Tooltip text="Iniciar serviço">
+                                <ButtonIcon label="Iniciar serviço" icon={Play} tone="primary" />
+                            </Tooltip>
+                            <Tooltip text="Concluir serviço">
+                                <ButtonIcon label="Concluir serviço" icon={Check} tone="done" />
+                            </Tooltip>
+                            <Tooltip text="Cancelar agendamento">
+                                <ButtonIcon label="Cancelar agendamento" icon={X} tone="danger" />
+                            </Tooltip>
+                            <Tooltip text="Abre o agendamento em outra tela">
+                                <Button variant="plain">Ver detalhe</Button>
+                            </Tooltip>
+                        </Usage>
+                        <Usage code="dentro da tabela, onde o contêiner rola: a bolha vai para o body e não é cortada" layout="stack">
+                            <TableCard>
+                                <Table columns={COLUMNS}>
+                                    {ROWS.slice(0, 2).map(row => (
+                                        <TableRow key={row.placa}>
+                                            <TableCell><BadgePlate plate={row.placa} /></TableCell>
+                                            <TableCell strong>{row.cliente}</TableCell>
+                                            <TableCell>{SERVICE_LABEL[row.servico]}</TableCell>
+                                            <TableCell><BadgeStatus status={row.status} /></TableCell>
+                                            <TableCell right>
+                                                <Tooltip text={`Abrir o agendamento de ${row.cliente}`}>
+                                                    <ButtonIcon to="/catalogo" label="Abrir agendamento" icon={ChevronRight} />
+                                                </Tooltip>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </Table>
                             </TableCard>
                         </Usage>
                     </Component>
