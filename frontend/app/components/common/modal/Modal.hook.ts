@@ -2,7 +2,12 @@ import {
     createContext, useContext, useEffect, useId, useRef, type MouseEvent, type SyntheticEvent
 } from "react";
 
-const FOCUSABLE = "input:not([type=hidden]), textarea, select, button, a[href], [tabindex]:not([tabindex='-1'])";
+// Desabilitado não recebe foco: se ele entrasse na lista, o `focus()` não faria nada e o foco
+// cairia no <body>, fora da janela.
+const FOCUSABLE = `
+    input:not([type=hidden]):not(:disabled), textarea:not(:disabled), select:not(:disabled),
+    button:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])
+`;
 
 type ModalControl = {
     titleId: string;
