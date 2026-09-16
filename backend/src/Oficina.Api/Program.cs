@@ -1,4 +1,5 @@
 using Oficina.Api.Middleware;
+using Oficina.BLL.Agendamentos;
 using Oficina.BLL.Clientes;
 using Oficina.BLL.Veiculos;
 using Oficina.DAL.DependencyInjection;
@@ -24,6 +25,7 @@ builder.Services.AddDal(connectionString);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ClienteServico>();
 builder.Services.AddScoped<VeiculoServico>();
+builder.Services.AddScoped<AgendamentoServico>();
 
 // Se CORS_ORIGINS estiver definida, sobrescreve as origens do appsettings.
 var corsOriginsOverride = Environment.GetEnvironmentVariable("CORS_ORIGINS");
