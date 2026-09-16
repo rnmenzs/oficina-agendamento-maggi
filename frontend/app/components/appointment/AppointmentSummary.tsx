@@ -2,50 +2,43 @@ import type { ReactNode } from "react";
 
 import { BadgePlate } from "../common/badge/BadgePlate";
 import type { AppointmentResponse } from "~/types/TypeAppointment";
-import { dayOf, formatDayShort, formatTime } from "~/utils/date";
+import { dayOf, formatDayWithWeekday, formatTime } from "~/utils/date";
 import { SERVICE_LABEL, SERVICE_MINUTES } from "~/utils/service";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
     return (
-        <div className="flex items-baseline gap-3">
-            <span className="w-20 shrink-0 text-xs font-semibold tracking-wider text-muted uppercase">
+        <div className="flex items-baseline gap-4">
+            <dt className="w-18 shrink-0 text-xs font-semibold tracking-wider text-muted uppercase">
                 {label}
-            </span>
-            <span className="min-w-0 flex-1">{children}</span>
+            </dt>
+            <dd className="min-w-0 flex-1 font-medium">{children}</dd>
         </div>
     );
 }
 
 /**
  * O agendamento em quatro linhas, para a pessoa reconhecer o que vai mudar antes de confirmar.
- * As mesmas colunas da tabela, na mesma ordem: quem confirma está olhando a lista há um segundo.
+ * Mesma ordem das colunas da tabela: quem confirma estava olhando a lista um segundo antes.
  */
 export function AppointmentSummary({ appointment }: { appointment: AppointmentResponse }) {
+    const day = dayOf(appointment.inicio);
+
     return (
-        <div className="flex flex-col gap-2 rounded-sm border border-line bg-surface-alt p-3 text-sm">
+        <dl className="flex flex-col gap-2 rounded-card border border-line bg-surface-alt px-4 py-3.5 text-sm">
             <Field label="Veículo">
-                <span className="font-semibold">{appointment.modelo}</span>
-                <span className="ml-1.5 text-muted">{appointment.ano}</span>
-                <span className="ml-2 align-middle"><BadgePlate plate={appointment.placa} /></span>
+                <span className="mr-2 align-middle"><BadgePlate plate={appointment.placa} /></span>
+                {appointment.modelo} {appointment.ano}
             </Field>
 
             <Field label="Cliente">{appointment.nomeDoCliente}</Field>
 
             <Field label="Serviço">
-                {SERVICE_LABEL[appointment.tipoServico]}
-                <span className="ml-1.5 text-muted">
-                    {SERVICE_MINUTES[appointment.tipoServico]} min
-                </span>
+                {SERVICE_LABEL[appointment.tipoServico]} · {SERVICE_MINUTES[appointment.tipoServico]} min
             </Field>
 
             <Field label="Quando">
-                <span className="font-mono">
-                    {formatDayShort(dayOf(appointment.inicio))}
-                    <span className="ml-2">
-                        {formatTime(appointment.inicio)} – {formatTime(appointment.fim)}
-                    </span>
-                </span>
+                {formatDayWithWeekday(day)} · {formatTime(appointment.inicio)} – {formatTime(appointment.fim)}
             </Field>
-        </div>
+        </dl>
     );
 }
