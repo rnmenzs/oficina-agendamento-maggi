@@ -1,32 +1,32 @@
 import { Check, ChevronRight, Play, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { BadgePlate } from "~/components/badge/BadgePlate";
-import { BadgeStatus } from "~/components/badge/BadgeStatus";
-import { Button } from "~/components/button/Button";
-import { ButtonIcon } from "~/components/button/ButtonIcon";
-import { FormDate } from "~/components/forms/FormDate/FormDate";
-import { FormDateRange, type DayRange } from "~/components/forms/FormDateRange";
-import { FormEmail } from "~/components/forms/FormEmail";
-import { FormNumber } from "~/components/forms/FormNumber";
-import { FormPhone } from "~/components/forms/FormPhone";
-import { FormPlate } from "~/components/forms/FormPlate";
-import { FormRadio } from "~/components/forms/FormRadio";
-import { FormSearch, type FormSearchOption } from "~/components/forms/FormSearch/FormSearch";
-import { FormSelect } from "~/components/forms/FormSelect/FormSelect";
-import { FormText } from "~/components/forms/FormText";
-import { NavBar, type NavBarSection } from "~/components/navbar/NavBar";
-import { NavBarLink } from "~/components/navbar/NavBarLink";
-import { Notification, type NotificationTone } from "~/components/notification/Notification";
-import { Skeleton } from "~/components/skeleton/Skeleton";
-import { SkeletonTable } from "~/components/skeleton/SkeletonTable";
-import { StateEmpty } from "~/components/state/StateEmpty";
-import { StateError } from "~/components/state/StateError";
-import { Table, type TableColumn } from "~/components/table/Table";
-import { TableCell } from "~/components/table/TableCell";
-import { TablePagination } from "~/components/table/TablePagination";
-import { TableRow } from "~/components/table/TableRow";
-import { Tooltip } from "~/components/tooltip/Tooltip";
+import { BadgePlate } from "~/components/common/badge/BadgePlate";
+import { BadgeStatus } from "~/components/common/badge/BadgeStatus";
+import { Button } from "~/components/common/button/Button";
+import { ButtonIcon } from "~/components/common/button/ButtonIcon";
+import { FormDate } from "~/components/common/forms/FormDate/FormDate";
+import { FormDateRange, type DayRange } from "~/components/common/forms/FormDateRange";
+import { FormEmail } from "~/components/common/forms/FormEmail";
+import { FormNumber } from "~/components/common/forms/FormNumber";
+import { FormPhone } from "~/components/common/forms/FormPhone";
+import { FormPlate } from "~/components/common/forms/FormPlate";
+import { FormRadio } from "~/components/common/forms/FormRadio";
+import { FormSearch, type FormSearchOption } from "~/components/common/forms/FormSearch/FormSearch";
+import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
+import { FormText } from "~/components/common/forms/FormText";
+import { NavBar, type NavBarSection } from "~/components/common/navbar/NavBar";
+import { NavBarLink } from "~/components/common/navbar/NavBarLink";
+import { Notification, type NotificationTone } from "~/components/common/notification/Notification";
+import { Skeleton } from "~/components/common/skeleton/Skeleton";
+import { SkeletonTable } from "~/components/common/skeleton/SkeletonTable";
+import { StateEmpty } from "~/components/common/state/StateEmpty";
+import { StateError } from "~/components/common/state/StateError";
+import { Table, type TableColumn } from "~/components/common/table/Table";
+import { TableCell } from "~/components/common/table/TableCell";
+import { TablePagination } from "~/components/common/table/TablePagination";
+import { TableRow } from "~/components/common/table/TableRow";
+import { Tooltip } from "~/components/common/tooltip/Tooltip";
 import type { AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
 import { SERVICE_LABEL } from "~/utils/service";
 import { STATUS_LABEL } from "~/utils/status";
@@ -315,7 +315,7 @@ export default function Catalogo() {
                     </p>
                 </header>
 
-                <Folder path="badge/">
+                <Folder path="common/badge/">
                     <Component name="BadgePlate">
                         <Usage code='<BadgePlate plate="ABC1234" />  formato antigo, ganha hífen'>
                             <BadgePlate plate="ABC1234" />
@@ -335,7 +335,7 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
-                <Folder path="button/">
+                <Folder path="common/button/">
                     <Component name="Button">
                         <Usage code='<Button variant="primary">Agendar</Button>'>
                             <Button variant="primary">Agendar</Button>
@@ -367,7 +367,7 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
-                <Folder path="forms/">
+                <Folder path="common/forms/">
                     <Component name="FormDate">
                         <Usage code="<FormDate />  calendário nosso, sem o do navegador" layout="grid">
                             <FormDate label="Data" required />
@@ -472,7 +472,7 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
-                <Folder path="navbar/">
+                <Folder path="common/navbar/">
                     <Component name="NavBar">
                         <Usage
                             code="<NavBar home sections />  as rotas vêm de fora; a seção atual se marca sozinha pela URL"
@@ -493,7 +493,7 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
-                <Folder path="notification/">
+                <Folder path="common/notification/">
                     <Component name="Notification">
                         <Usage code="<Notification tone onClose>{texto}</Notification>" layout="stack">
                             <NotificationSample />
@@ -501,7 +501,7 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
-                <Folder path="skeleton/">
+                <Folder path="common/skeleton/">
                     <Component name="Skeleton">
                         <Usage code="<Skeleton />  sem filhos, vira barra" layout="stack">
                             <Skeleton />
@@ -541,7 +541,7 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
-                <Folder path="state/">
+                <Folder path="common/state/">
                     <Component name="StateEmpty">
                         <Usage code="<StateEmpty title description>{ação}</StateEmpty>" layout="stack">
                             <StateEmpty
@@ -574,7 +574,7 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
-                <Folder path="table/">
+                <Folder path="common/table/">
                     <Component name="Table">
                         <Usage
                             code="<Table columns>{<TableRow><TableCell/></TableRow>}</Table>  largura pelo colgroup, ações com rótulo só para o leitor de tela"
@@ -605,7 +605,7 @@ export default function Catalogo() {
                     </Component>
                 </Folder>
 
-                <Folder path="tooltip/">
+                <Folder path="common/tooltip/">
                     <Component name="Tooltip">
                         <Usage code="<Tooltip text>{gatilho}</Tooltip>  passe o mouse, ou chegue pelo Tab">
                             <Tooltip text="Iniciar serviço">
