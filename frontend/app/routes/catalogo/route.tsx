@@ -25,6 +25,7 @@ import { ModalHeader } from "~/components/common/modal/ModalHeader";
 import { NavBar, type NavBarSection } from "~/components/common/navbar/NavBar";
 import { NavBarLink } from "~/components/common/navbar/NavBarLink";
 import { Notification, type NotificationTone } from "~/components/common/notification/Notification";
+import { useModal } from "~/hooks/useModal";
 import { useNotification } from "~/hooks/useNotification";
 import { PageHeader } from "~/components/common/page/PageHeader";
 import { Skeleton } from "~/components/common/skeleton/Skeleton";
@@ -115,6 +116,69 @@ const INITIAL_NOTES: readonly { id: number; tone: NotificationTone; text: string
     { id: 3, tone: "warning", text: "Faltam menos de 2 horas: este agendamento não pode mais ser cancelado." },
     { id: 4, tone: "error", text: "Este veículo já tem um agendamento nesse horário." }
 ];
+
+// Conteúdo qualquer dentro da janela do sistema: quem abre decide o que vai dentro e o que o
+// `fechar` devolve. É assim que um cadastro vai morar numa janela sem tela nenhuma controlar
+// `open`, `onClose` e o estado do formulário.
+function CadastroDeExemplo({ onDone }: { onDone: (nome?: string) => void }) {
+    const [nome, setNome] = useState("");
+
+    return (
+        <>
+            <ModalHeader title="Novo cliente" description="A janela leva conteúdo, não só confirmação." />
+
+            <ModalBody>
+                <FormText
+                    label="Nome"
+                    placeholder="Ana Souza"
+                    value={nome}
+                    onChange={evento => setNome(evento.target.value)}
+                />
+            </ModalBody>
+
+            <ModalFooter>
+                <Button onClick={() => onDone()}>Voltar</Button>
+                <Button variant="primary" disabled={!nome.trim()} onClick={() => onDone(nome.trim())}>
+                    Cadastrar
+                </Button>
+            </ModalFooter>
+        </>
+    );
+}
+
+// A pergunta com resposta: a tela espera na mesma linha em que perguntou.
+function ModalTrigger() {
+    const { abrir, confirmar } = useModal();
+    const { avisar } = useNotification();
+
+    async function cadastrar() {
+        const nome = await abrir<string>(fechar => <CadastroDeExemplo onDone={fechar} />);
+
+        if (nome) avisar(`${nome} entrou na lista.`);
+    }
+
+    async function perguntar(danger: boolean) {
+        const sim = await confirmar({
+            title: danger ? "Cancelar agendamento?" : "Iniciar serviço?",
+            summary: "Fiat Argo · ABC-1234 · hoje às 09:00",
+            text: danger
+                ? "A vaga volta a ficar livre para outro serviço, e o agendamento não volta atrás."
+                : "Depois de iniciado, o serviço só pode ser concluído — não volta para agendado.",
+            action: danger ? "Cancelar agendamento" : "Iniciar serviço",
+            danger
+        });
+
+        avisar(sim ? "Confirmado." : "Nada mudou.", sim ? "success" : "info");
+    }
+
+    return (
+        <>
+            <Button onClick={() => perguntar(false)}>Pedir confirmação</Button>
+            <Button variant="danger" onClick={() => perguntar(true)}>Confirmação de risco</Button>
+            <Button variant="primary" onClick={cadastrar}>Abrir um cadastro</Button>
+        </>
+    );
+}
 
 // A pilha de verdade: o contexto guarda os avisos e a região os desenha no canto. Sucesso e
 // informação somem sozinhos; alerta e erro esperam alguém fechar.
@@ -593,6 +657,9 @@ export default function Catalogo() {
                             layout="stack"
                         >
                             <ModalPreview />
+                        </Usage>
+                        <Usage code="const { abrir, confirmar } = useModal()  promessa: o que o conteúdo passar no fechar">
+                            <ModalTrigger />
                         </Usage>
                         <Usage code="<Modal open width onClose />  a casca: abre, prende o foco, fecha" layout="stack">
                             <ModalSample />
