@@ -15,6 +15,7 @@ import { FormRadio } from "~/components/forms/FormRadio";
 import { FormSearch, type FormSearchOption } from "~/components/forms/FormSearch/FormSearch";
 import { FormSelect } from "~/components/forms/FormSelect/FormSelect";
 import { FormText } from "~/components/forms/FormText";
+import { Notification, type NotificationTone } from "~/components/notification/Notification";
 import type { AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
 import { SERVICE_LABEL } from "~/utils/service";
 import { STATUS_LABEL } from "~/utils/status";
@@ -60,13 +61,52 @@ function Component({ name, children }: { name: string; children: ReactNode }) {
     );
 }
 
-function Usage({ code, grid = false, children }: { code: string; grid?: boolean; children: ReactNode }) {
+const LAYOUT = {
+    row: "flex flex-wrap items-center gap-3",
+    grid: "grid gap-4 sm:grid-cols-2",
+    stack: "flex flex-col gap-4"
+};
+
+type UsageProps = {
+    code: string;
+    layout?: keyof typeof LAYOUT;
+    children: ReactNode;
+};
+
+function Usage({ code, layout = "row", children }: UsageProps) {
     return (
         <div className="flex flex-col gap-2">
             <code className="font-mono text-xs leading-relaxed text-muted">{code}</code>
-            <div className={grid ? "grid gap-4 sm:grid-cols-2" : "flex flex-wrap items-center gap-3"}>
-                {children}
+            <div className={LAYOUT[layout]}>{children}</div>
+        </div>
+    );
+}
+
+const INITIAL_NOTES: readonly { id: number; tone: NotificationTone; text: string }[] = [
+    { id: 1, tone: "success", text: "Agendamento criado para 24/10 às 09:00." },
+    { id: 2, tone: "info", text: "A duração de 90 minutos vem do tipo Diagnóstico." },
+    { id: 3, tone: "warning", text: "Faltam menos de 2 horas: este agendamento não pode mais ser cancelado." },
+    { id: 4, tone: "error", text: "Este veículo já tem um agendamento nesse horário." }
+];
+
+function NotificationSample() {
+    const [notes, setNotes] = useState(INITIAL_NOTES);
+
+    function close(id: number) {
+        setNotes(atuais => atuais.filter(nota => nota.id !== id));
+    }
+
+    return (
+        <div className="flex w-full flex-col gap-3">
+            <div className="flex flex-col gap-2">
+                {notes.map(nota => (
+                    <Notification key={nota.id} tone={nota.tone} onClose={() => close(nota.id)}>
+                        {nota.text}
+                    </Notification>
+                ))}
             </div>
+
+            <Button variant="plain" onClick={() => setNotes(INITIAL_NOTES)}>Repor os avisos</Button>
         </div>
     );
 }
@@ -164,11 +204,11 @@ export default function Catalogo() {
 
             <Folder path="forms/">
                 <Component name="FormDate">
-                    <Usage code="<FormDate />  calendário nosso, sem o do navegador" grid>
+                    <Usage code="<FormDate />  calendário nosso, sem o do navegador" layout="grid">
                         <FormDate label="Data" required />
                         <FormDate label="Data" defaultValue="2026-09-16" />
                     </Usage>
-                    <Usage code='<FormDate min="2026-09-16" />  bloqueia o passado, como a regra 1' grid>
+                    <Usage code='<FormDate min="2026-09-16" />  bloqueia o passado, como a regra 1' layout="grid">
                         <FormDate label="Data" min="2026-09-16" hint="Não dá para marcar antes de hoje." />
                         <FormDate label="Data" defaultValue="2026-09-16" error="Escolha uma data." />
                     </Usage>
@@ -181,7 +221,7 @@ export default function Catalogo() {
                 </Component>
 
                 <Component name="FormEmail">
-                    <Usage code="<FormEmail label />  teclado de e-mail, sem corretor, limite de 254" grid>
+                    <Usage code="<FormEmail label />  teclado de e-mail, sem corretor, limite de 254" layout="grid">
                         <FormEmail label="E-mail" placeholder="maria@email.com" required />
                         <FormEmail
                             label="E-mail"
@@ -192,25 +232,25 @@ export default function Catalogo() {
                 </Component>
 
                 <Component name="FormNumber">
-                    <Usage code="<FormNumber digits={4} />  só dígito passa, sem setinha do navegador" grid>
+                    <Usage code="<FormNumber digits={4} />  só dígito passa, sem setinha do navegador" layout="grid">
                         <FormNumber label="Ano" digits={4} placeholder="2024" required />
                         <FormNumber label="Ano" digits={4} defaultValue={2030} error="Ano deve estar entre 1900 e 2027." />
                     </Usage>
                 </Component>
 
                 <Component name="FormPhone">
-                    <Usage code="<FormPhone label />  formata a cada tecla, digite para ver" grid>
+                    <Usage code="<FormPhone label />  formata a cada tecla, digite para ver" layout="grid">
                         <FormPhone label="Telefone" required />
                         <FormPhone label="Telefone" defaultValue="1132654321" hint="Fixo quebra em 4-4." />
                     </Usage>
-                    <Usage code="<FormPhone defaultValue error disabled />" grid>
+                    <Usage code="<FormPhone defaultValue error disabled />" layout="grid">
                         <FormPhone label="Telefone" defaultValue="11987654321" error="Telefone inválido." />
                         <FormPhone label="Telefone" defaultValue="5511987654321" disabled />
                     </Usage>
                 </Component>
 
                 <Component name="FormPlate">
-                    <Usage code="<FormPlate />  maiúsculas sempre, hífen só quando a placa fecha" grid>
+                    <Usage code="<FormPlate />  maiúsculas sempre, hífen só quando a placa fecha" layout="grid">
                         <FormPlate label="Placa" required />
                         <FormPlate label="Placa" defaultValue="abc1234" hint="Formato antigo ganha hífen." />
                     </Usage>
@@ -226,33 +266,33 @@ export default function Catalogo() {
                 </Component>
 
                 <Component name="FormSearch">
-                    <Usage code="<FormSearch options={...} />  digite jose e ache também José" grid>
+                    <Usage code="<FormSearch options={...} />  digite jose e ache também José" layout="grid">
                         <FormSearch label="Cliente" name="clienteId" options={CLIENTS} required />
                         <FormSearch label="Cliente" options={CLIENTS} defaultValue="3" />
                     </Usage>
-                    <Usage code="<FormSearch error />  e <FormSearch disabled />" grid>
+                    <Usage code="<FormSearch error />  e <FormSearch disabled />" layout="grid">
                         <FormSearch label="Cliente" options={CLIENTS} error="Escolha um cliente." />
                         <FormSearch label="Cliente" options={CLIENTS} defaultValue="5" disabled />
                     </Usage>
                 </Component>
 
                 <Component name="FormSelect">
-                    <Usage code="<FormSelect options={...} defaultValue />  fechado, abre no clique" grid>
+                    <Usage code="<FormSelect options={...} defaultValue />  fechado, abre no clique" layout="grid">
                         <FormSelect label="Status" options={STATUS_OPTIONS} defaultValue="Agendado" required />
                         <FormSelect label="Status" options={STATUS_OPTIONS} placeholder="Todos" />
                     </Usage>
-                    <Usage code="<FormSelect error />  e <FormSelect disabled />" grid>
+                    <Usage code="<FormSelect error />  e <FormSelect disabled />" layout="grid">
                         <FormSelect label="Status" options={STATUS_OPTIONS} error="Escolha um status." />
                         <FormSelect label="Status" options={STATUS_OPTIONS} defaultValue="Concluido" disabled />
                     </Usage>
                 </Component>
 
                 <Component name="FormText">
-                    <Usage code="<FormText required />  a estrela marca o obrigatório" grid>
+                    <Usage code="<FormText required />  a estrela marca o obrigatório" layout="grid">
                         <FormText label="Nome" placeholder="Maria Silva" hint="Como aparece na ordem de serviço." required />
                         <FormText label="Modelo" placeholder="Gol 1.0" />
                     </Usage>
-                    <Usage code="<FormText error />  a dica some, o erro ocupa o lugar" grid>
+                    <Usage code="<FormText error />  a dica some, o erro ocupa o lugar" layout="grid">
                         <FormText
                             label="Modelo"
                             defaultValue="G"
@@ -260,12 +300,21 @@ export default function Catalogo() {
                             error="Modelo deve ter ao menos 2 caracteres."
                         />
                     </Usage>
-                    <Usage code="<FormText disabled />  e <FormText wide />, que atravessa a grade" grid>
+                    <Usage code="<FormText disabled />  e <FormText wide />, que atravessa a grade" layout="grid">
                         <FormText label="Placa" defaultValue="ABC1D23" disabled />
                         <FormText label="Observação" placeholder="Opcional" wide />
                     </Usage>
                 </Component>
             </Folder>
+
+            <Folder path="notification/">
+                <Component name="Notification">
+                    <Usage code="<Notification tone onClose>{texto}</Notification>" layout="stack">
+                        <NotificationSample />
+                    </Usage>
+                </Component>
+            </Folder>
+
         </main>
     );
 }

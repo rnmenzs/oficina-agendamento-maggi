@@ -25,6 +25,8 @@
 
     --color-error: #B42318;
     --color-error-bg: #FDECEA;
+    --color-warning: #B45309;
+    --color-info: #1473E6;
 
     --font-sans: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
