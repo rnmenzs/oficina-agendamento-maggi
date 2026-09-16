@@ -19,7 +19,7 @@ type NotificationRegionProps = {
 // Ela cobre a tela inteira para posicionar os avisos, então não pode capturar clique; quem
 // recebe clique é cada aviso.
 export function NotificationRegion({ notifications, onClose }: NotificationRegionProps) {
-    const regiao = useRef<HTMLDivElement>(null);
+    const region = useRef<HTMLDivElement>(null);
 
     // Uma janela aberta com showModal() sobe para a camada de topo do navegador, acima de qualquer
     // z-index — um aviso disparado com a janela aberta ficaria atrás do fundo escurecido. A região
@@ -28,34 +28,34 @@ export function NotificationRegion({ notifications, onClose }: NotificationRegio
     // O atributo só é posto quando o navegador sabe abrir: sem isso, `[popover]` sem `showPopover`
     // vale display:none, e os avisos sumiriam de vez.
     useEffect(() => {
-        const alvo = regiao.current;
-        if (!alvo || typeof alvo.showPopover !== "function") return;
+        const target = region.current;
+        if (!target || typeof target.showPopover !== "function") return;
 
-        alvo.popover = "manual";
+        target.popover = "manual";
 
         try {
-            if (alvo.matches(":popover-open")) alvo.hidePopover();
-            alvo.showPopover();
+            if (target.matches(":popover-open")) target.hidePopover();
+            target.showPopover();
         } catch {
-            alvo.popover = null;
+            target.popover = null;
         }
     }, [notifications]);
 
     return (
         <div
-            ref={regiao}
+            ref={region}
             aria-live="polite"
             className="pointer-events-none fixed inset-x-0 top-auto bottom-0 z-50 m-0 h-auto w-auto
                 flex flex-col items-center gap-2 border-0 bg-transparent p-4 sm:items-end"
         >
-            {notifications.map(nota => (
+            {notifications.map(item => (
                 <div
-                    key={nota.id}
+                    key={item.id}
                     className="pointer-events-auto w-full max-w-sm transition-all duration-200
                         starting:translate-y-2 starting:opacity-0"
                 >
-                    <Notification tone={nota.tone} onClose={() => onClose(nota.id)}>
-                        {nota.text}
+                    <Notification tone={item.tone} onClose={() => onClose(item.id)}>
+                        {item.text}
                     </Notification>
                 </div>
             ))}

@@ -118,10 +118,10 @@ const INITIAL_NOTES: readonly { id: number; tone: NotificationTone; text: string
 ];
 
 // Conteúdo qualquer dentro da janela do sistema: quem abre decide o que vai dentro e o que o
-// `fechar` devolve. É assim que um cadastro vai morar numa janela sem tela nenhuma controlar
+// `close` devolve. É assim que um cadastro vai morar numa janela sem tela nenhuma controlar
 // `open`, `onClose` e o estado do formulário.
-function CadastroDeExemplo({ onDone }: { onDone: (nome?: string) => void }) {
-    const [nome, setNome] = useState("");
+function SampleRegistration({ onDone }: { onDone: (name?: string) => void }) {
+    const [name, setName] = useState("");
 
     return (
         <>
@@ -131,14 +131,14 @@ function CadastroDeExemplo({ onDone }: { onDone: (nome?: string) => void }) {
                 <FormText
                     label="Nome"
                     placeholder="Ana Souza"
-                    value={nome}
-                    onChange={evento => setNome(evento.target.value)}
+                    value={name}
+                    onChange={event => setName(event.target.value)}
                 />
             </ModalBody>
 
             <ModalFooter>
                 <Button onClick={() => onDone()}>Voltar</Button>
-                <Button variant="primary" disabled={!nome.trim()} onClick={() => onDone(nome.trim())}>
+                <Button variant="primary" disabled={!name.trim()} onClick={() => onDone(name.trim())}>
                     Cadastrar
                 </Button>
             </ModalFooter>
@@ -148,17 +148,17 @@ function CadastroDeExemplo({ onDone }: { onDone: (nome?: string) => void }) {
 
 // A pergunta com resposta: a tela espera na mesma linha em que perguntou.
 function ModalTrigger() {
-    const { abrir, confirmar } = useModal();
-    const { avisar } = useNotification();
+    const { open, confirm } = useModal();
+    const { notify } = useNotification();
 
-    async function cadastrar() {
-        const nome = await abrir<string>(fechar => <CadastroDeExemplo onDone={fechar} />);
+    async function register() {
+        const name = await open<string>(close => <SampleRegistration onDone={close} />);
 
-        if (nome) avisar(`${nome} entrou na lista.`);
+        if (name) notify(`${name} entrou na lista.`);
     }
 
-    async function perguntar(danger: boolean) {
-        const sim = await confirmar({
+    async function ask(danger: boolean) {
+        const confirmed = await confirm({
             title: danger ? "Cancelar agendamento?" : "Iniciar serviço?",
             summary: "Fiat Argo · ABC-1234 · hoje às 09:00",
             text: danger
@@ -168,14 +168,14 @@ function ModalTrigger() {
             danger
         });
 
-        avisar(sim ? "Confirmado." : "Nada mudou.", sim ? "success" : "info");
+        notify(confirmed ? "Confirmado." : "Nada mudou.", confirmed ? "success" : "info");
     }
 
     return (
         <>
-            <Button onClick={() => perguntar(false)}>Pedir confirmação</Button>
-            <Button variant="danger" onClick={() => perguntar(true)}>Confirmação de risco</Button>
-            <Button variant="primary" onClick={cadastrar}>Abrir um cadastro</Button>
+            <Button onClick={() => ask(false)}>Pedir confirmação</Button>
+            <Button variant="danger" onClick={() => ask(true)}>Confirmação de risco</Button>
+            <Button variant="primary" onClick={register}>Abrir um cadastro</Button>
         </>
     );
 }
@@ -183,13 +183,13 @@ function ModalTrigger() {
 // A pilha de verdade: o contexto guarda os avisos e a região os desenha no canto. Sucesso e
 // informação somem sozinhos; alerta e erro esperam alguém fechar.
 function NotificationTrigger() {
-    const { avisar } = useNotification();
+    const { notify } = useNotification();
 
     return (
         <>
-            {INITIAL_NOTES.map(nota => (
-                <Button key={nota.id} onClick={() => avisar(nota.text, nota.tone)}>
-                    {nota.tone}
+            {INITIAL_NOTES.map(item => (
+                <Button key={item.id} onClick={() => notify(item.text, item.tone)}>
+                    {item.tone}
                 </Button>
             ))}
         </>
@@ -658,7 +658,7 @@ export default function Catalogo() {
                         >
                             <ModalPreview />
                         </Usage>
-                        <Usage code="const { abrir, confirmar } = useModal()  promessa: o que o conteúdo passar no fechar">
+                        <Usage code="const { open, confirm } = useModal()  promessa: o que o conteúdo passar no close">
                             <ModalTrigger />
                         </Usage>
                         <Usage code="<Modal open width onClose />  a casca: abre, prende o foco, fecha" layout="stack">
@@ -693,7 +693,7 @@ export default function Catalogo() {
                         <Usage code="<Notification tone onClose>{texto}</Notification>" layout="stack">
                             <NotificationSample />
                         </Usage>
-                        <Usage code="const { avisar } = useNotification()  o aviso nasce no canto, por cima de qualquer tela">
+                        <Usage code="const { notify } = useNotification()  o aviso nasce no canto, por cima de qualquer tela">
                             <NotificationTrigger />
                         </Usage>
                     </Component>
