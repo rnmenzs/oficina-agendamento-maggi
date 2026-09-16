@@ -7,7 +7,8 @@ import { Button } from "~/components/common/button/Button";
 import { ButtonIcon } from "~/components/common/button/ButtonIcon";
 import { Card } from "~/components/common/card/Card";
 import { FormDate } from "~/components/common/forms/FormDate/FormDate";
-import { FormDateRange, type DayRange } from "~/components/common/forms/FormDateRange";
+import { FormDateRange } from "~/components/common/forms/FormDateRange/FormDateRange";
+import type { Day, DayRange } from "~/types/TypeCommon";
 import { FormEmail } from "~/components/common/forms/FormEmail";
 import { FormNumber } from "~/components/common/forms/FormNumber";
 import { FormPhone } from "~/components/common/forms/FormPhone";
@@ -233,12 +234,20 @@ function ModalSample() {
     );
 }
 
-function DateRangeSample() {
-    const [period, setPeriod] = useState<DayRange>({ from: "2026-09-16", to: "2026-09-20" });
+function DateRangeSample({ empty = false, min }: { empty?: boolean; min?: Day }) {
+    const [period, setPeriod] = useState<DayRange>(
+        empty ? { from: "", to: "" } : { from: "2026-09-16", to: "2026-09-20" }
+    );
 
     return (
         <div className="flex flex-col gap-2">
-            <FormDateRange fromName="dataInicio" toName="dataFim" value={period} onChange={setPeriod} />
+            <FormDateRange
+                fromName="dataInicio"
+                toName="dataFim"
+                min={min}
+                value={period}
+                onChange={setPeriod}
+            />
             <code className="font-mono text-xs text-muted">
                 {`{ from: "${period.from}", to: "${period.to}" }`}
             </code>
@@ -415,7 +424,7 @@ export default function Catalogo() {
                     </Component>
 
                     <Component name="ButtonIcon">
-                        <Usage code='<ButtonIcon label="Iniciar serviço" icon={Play} tone="primary" />'>
+                        <Usage code='<ButtonIcon tone="primary | done | danger" />  cinza parado, o tom sai no hover'>
                             <ButtonIcon label="Iniciar serviço" icon={Play} tone="primary" />
                             <ButtonIcon label="Concluir serviço" icon={Check} tone="done" />
                             <ButtonIcon label="Cancelar agendamento" icon={X} tone="danger" />
@@ -460,8 +469,13 @@ export default function Catalogo() {
                     </Component>
 
                     <Component name="FormDateRange">
-                        <Usage code="<FormDateRange value onChange />  mover o de para depois do até empurra o até">
+                        <Usage code="<FormDateRange value onChange />  um calendário só: o primeiro clique abre a faixa, o segundo fecha" layout="grid">
                             <DateRangeSample />
+                            <DateRangeSample empty />
+                        </Usage>
+                        <Usage code='<FormDateRange min="2026-09-16" disabled />  clicar de trás para frente inverte as pontas' layout="grid">
+                            <DateRangeSample empty min="2026-09-16" />
+                            <FormDateRange value={{ from: "2026-09-16", to: "2026-09-20" }} disabled onChange={() => {}} />
                         </Usage>
                     </Component>
 

@@ -11,6 +11,7 @@ export type AppointmentResponse = {
     veiculoId: Id;
     placa: string;
     modelo: string;
+    ano: number;
     clienteId: Id;
     nomeDoCliente: string;
     inicio: Instant;
@@ -24,7 +25,6 @@ export type AppointmentResponse = {
 // O detalhe é a listagem mais o que só a tela de um agendamento precisa: o ano do veículo e o
 // contato do dono, para quem atende saber para quem ligar.
 export type AppointmentDetailResponse = AppointmentResponse & {
-    ano: number;
     telefoneDoCliente: string;
     emailDoCliente: string;
 };

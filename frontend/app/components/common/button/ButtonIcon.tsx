@@ -10,10 +10,12 @@ const BASE = `
     disabled:cursor-not-allowed disabled:opacity-55
 `;
 
+// Cor aqui é promessa de "você está aqui", e ela não se cumpre a três colunas de distância: em
+// repouso todos são cinza, e cada tom só aparece quando o mouse está no próprio botão.
 const TONE: Record<IconTone, string> = {
     neutral: "text-muted hover:bg-surface-alt hover:border-line-strong hover:text-ink",
-    primary: "text-primary hover:bg-primary-soft hover:border-primary",
-    done: "text-done hover:bg-done-bg hover:border-done",
+    primary: "text-muted hover:bg-primary-soft hover:border-primary hover:text-primary",
+    done: "text-muted hover:bg-done-bg hover:border-done hover:text-done",
     danger: "text-muted hover:bg-error-bg hover:border-error hover:text-error"
 };
 

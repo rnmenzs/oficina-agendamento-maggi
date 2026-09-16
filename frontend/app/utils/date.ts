@@ -1,6 +1,8 @@
-import type { Day } from "~/types/TypeCommon";
+import type { Day, Instant } from "~/types/TypeCommon";
 
 export const WEEKDAY_INITIALS = ["D", "S", "T", "Q", "Q", "S", "S"] as const;
+
+const SHORT_WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"] as const;
 
 const MONTHS = [
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -31,6 +33,30 @@ export function formatDay(day: Day): string {
     const [year, month, date] = day.split("-");
 
     return `${date}/${month}/${year}`;
+}
+
+/** Como a agenda mostra o dia: "16/09 qua". O dia da semana ajuda a se localizar na lista. */
+export function formatDayShort(day: Day): string {
+    const data = fromDay(day);
+    const [dia, mes] = [data.getDate(), data.getMonth() + 1].map(n => String(n).padStart(2, "0"));
+
+    return `${dia}/${mes} ${SHORT_WEEKDAYS[data.getDay()]}`;
+}
+
+/** Dia por extenso, para o subtítulo da agenda: "quarta-feira, 16 de setembro de 2026". */
+export function formatDayLong(day: Day): string {
+    return fromDay(day).toLocaleDateString("pt-BR", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric"
+    });
+}
+
+export function formatTime(instant: Instant): string {
+    return new Date(instant).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** O dia em que um instante cai, no fuso de quem está olhando, que é o da oficina. */
+export function dayOf(instant: Instant): Day {
+    return toDay(new Date(instant));
 }
 
 export function monthLabel(date: Date): string {

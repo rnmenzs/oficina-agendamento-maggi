@@ -12,7 +12,7 @@ const TONE: Record<AppointmentStatus, string> = {
 export function BadgeStatus({ status }: { status: AppointmentStatus }) {
     return (
         <span
-            className={`inline-flex items-center gap-1.5 rounded-full py-1 px-2
+            className={`inline-flex items-center gap-1.5 rounded-full align-middle py-1 px-2
                 text-xs font-semibold whitespace-nowrap ${TONE[status]}`}
         >
             <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden />

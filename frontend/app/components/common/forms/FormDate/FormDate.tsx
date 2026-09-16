@@ -1,24 +1,15 @@
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Day } from "~/types/TypeCommon";
-import { formatDay, monthGrid, monthLabel, toDay, WEEKDAY_INITIALS } from "~/utils/date";
+import { formatDay } from "~/utils/date";
+import { FormCalendar } from "../FormCalendar";
 import { describedBy, FormField } from "../FormField";
 import { useFormDate } from "./FormDate.hook";
 
 const BASE = `
     flex min-h-10 w-full items-center justify-between gap-2 rounded-sm border
     bg-surface px-2.5 py-2 text-left text-sm text-ink transition-colors
-`;
-
-const CELL = `
-    flex size-9 cursor-pointer items-center justify-center rounded-sm text-sm
-    transition-colors hover:bg-surface-alt
-`;
-
-const MONTH_BUTTON = `
-    cursor-pointer rounded-sm p-1 text-muted transition-colors
-    hover:bg-surface-alt hover:text-ink
 `;
 
 function boxClasses(invalid: boolean, disabled: boolean, open: boolean): string {
@@ -90,83 +81,19 @@ export function FormDate({
                         role="dialog"
                         aria-label={label}
                         onKeyDown={calendar.onKeyDown}
-                        className="absolute top-full left-0 z-40 mt-1 w-max rounded-card border
-                            border-line-strong bg-surface p-3 shadow-lg"
+                        className={`absolute left-0 z-40 w-max rounded-card border
+                            border-line-strong bg-surface p-3 shadow-lg
+                            ${calendar.acima ? "bottom-full mb-1" : "top-full mt-1"}`}
                     >
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                            <button
-                                type="button"
-                                aria-label="Mês anterior"
-                                onClick={() => calendar.goToMonth(-1)}
-                                className={MONTH_BUTTON}
-                            >
-                                <ChevronLeft size={16} aria-hidden />
-                            </button>
-
-                            <span
-                                aria-live="polite"
-                                className="text-sm font-semibold first-letter:uppercase"
-                            >
-                                {monthLabel(calendar.month)}
-                            </span>
-
-                            <button
-                                type="button"
-                                aria-label="Próximo mês"
-                                onClick={() => calendar.goToMonth(1)}
-                                className={MONTH_BUTTON}
-                            >
-                                <ChevronRight size={16} aria-hidden />
-                            </button>
-                        </div>
-
-                        <div aria-hidden className="grid grid-cols-7">
-                            {WEEKDAY_INITIALS.map((initial, at) => (
-                                <span
-                                    key={at}
-                                    className="flex size-9 items-center justify-center text-xs
-                                        font-semibold text-muted"
-                                >
-                                    {initial}
-                                </span>
-                            ))}
-                        </div>
-
-                        <div role="grid">
-                            {monthGrid(calendar.month).map((week, at) => (
-                                <div key={at} role="row" className="grid grid-cols-7">
-                                    {week.map(date => {
-                                        const day = toDay(date);
-                                        const chosen = day === calendar.current;
-                                        const off = date.getMonth() !== calendar.month.getMonth();
-                                        const barred = calendar.isBlocked(day);
-
-                                        return (
-                                            <button
-                                                key={day}
-                                                type="button"
-                                                role="gridcell"
-                                                data-day={day}
-                                                aria-disabled={barred}
-                                                tabIndex={day === calendar.cursor ? 0 : -1}
-                                                aria-selected={chosen}
-                                                aria-current={day === calendar.today ? "date" : undefined}
-                                                onClick={() => calendar.choose(day)}
-                                                className={`${CELL} ${
-                                                    barred
-                                                        ? "cursor-not-allowed text-muted/40 hover:bg-transparent"
-                                                        : off ? "text-muted/60" : ""} ${
-                                                    chosen
-                                                        ? "bg-primary font-semibold text-on-primary hover:bg-primary-strong"
-                                                        : day === calendar.today ? "font-semibold text-primary" : ""}`}
-                                            >
-                                                {date.getDate()}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            ))}
-                        </div>
+                        <FormCalendar
+                            month={calendar.month}
+                            cursor={calendar.cursor}
+                            today={calendar.today}
+                            stateOf={day => (day === calendar.current ? "single" : null)}
+                            isBlocked={calendar.isBlocked}
+                            onMonth={calendar.goToMonth}
+                            onChoose={calendar.choose}
+                        />
                     </div>
                 )}
             </div>

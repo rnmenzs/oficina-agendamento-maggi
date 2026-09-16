@@ -10,6 +10,7 @@ public sealed record AgendamentoNaAgenda(
     Agendamento Agendamento,
     string Placa,
     string Modelo,
+    int Ano,
     Guid ClienteId,
     string NomeDoCliente
 );

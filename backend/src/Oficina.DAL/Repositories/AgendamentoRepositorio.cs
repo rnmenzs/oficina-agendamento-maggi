@@ -37,13 +37,13 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         {ColunasDoAgendamento},
         v.placa  AS Placa,
         v.modelo AS Modelo,
+        v.ano    AS Ano,
         c.id     AS ClienteId,
         c.nome   AS NomeDoCliente
         """;
 
     private const string ColunasDoDetalhe = $"""
         {ColunasDaAgenda},
-        v.ano       AS Ano,
         c.telefone  AS TelefoneDoCliente,
         c.email     AS EmailDoCliente
         """;
@@ -302,6 +302,7 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
             MontarEntidade(linha),
             linha.Placa,
             linha.Modelo,
+            linha.Ano,
             linha.ClienteId,
             linha.NomeDoCliente
         );
@@ -333,6 +334,7 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         DateTime AtualizadoEm,
         string Placa,
         string Modelo,
+        int Ano,
         Guid ClienteId,
         string NomeDoCliente
     );
@@ -348,13 +350,13 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         DateTime AtualizadoEm,
         string Placa,
         string Modelo,
+        int Ano,
         Guid ClienteId,
         string NomeDoCliente,
-        int Ano,
         string TelefoneDoCliente,
         string EmailDoCliente
     ) : AgendaLinha(
         Id, VeiculoId, Inicio, Fim, TipoServico, Status, CriadoEm, AtualizadoEm,
-        Placa, Modelo, ClienteId, NomeDoCliente
+        Placa, Modelo, Ano, ClienteId, NomeDoCliente
     );
 }

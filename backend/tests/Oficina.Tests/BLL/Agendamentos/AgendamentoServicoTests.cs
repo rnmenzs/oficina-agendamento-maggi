@@ -706,6 +706,7 @@ public class AgendamentoServicoTests
                 agendamento,
                 veiculo.Placa.Valor,
                 veiculo.Modelo,
+                veiculo.Ano,
                 dono.Id,
                 dono.Nome
             );

@@ -8,7 +8,7 @@ type TableCellProps = {
 
 export function TableCell({ right = false, strong = false, children }: TableCellProps) {
     return (
-        <td className={`px-4 py-3 align-middle ${right ? "text-right" : ""} ${strong ? "font-semibold" : ""}`}>
+        <td className={`px-4 py-2.5 align-middle ${right ? "text-right" : ""} ${strong ? "font-semibold" : ""}`}>
             {children}
         </td>
     );

@@ -8,3 +8,9 @@ export type Instant = string;
 
 /** Dia no formato `2026-09-16`, sem hora. É o que os filtros de período enviam. */
 export type Day = string;
+
+/** Intervalo de dias. Com as duas pontas vazias não há limite de período. */
+export type DayRange = {
+    from: Day;
+    to: Day;
+};

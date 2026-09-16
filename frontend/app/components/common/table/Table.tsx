@@ -15,7 +15,7 @@ type TableProps = {
 
 export function Table({ columns, children }: TableProps) {
     return (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-t-card">
             <table className="w-full border-collapse text-sm">
                 <colgroup>
                     {columns.map(column => <col key={column.key} style={{ width: column.width }} />)}
@@ -27,7 +27,7 @@ export function Table({ columns, children }: TableProps) {
                             <th
                                 key={key}
                                 scope="col"
-                                className={`border-b border-line bg-surface-alt px-4 py-2.5 text-xs
+                                className={`border-b border-line bg-surface-alt px-4 py-2 text-xs
                                     font-semibold tracking-widest text-muted uppercase whitespace-nowrap
                                     ${right ? "text-right" : "text-left"}`}
                             >

@@ -23,6 +23,7 @@ function boxClasses(invalid: boolean, disabled: boolean, open: boolean): string 
 
 type FormSelectProps = {
     label: string;
+    hideLabel?: boolean;
     required?: boolean;
     hint?: ReactNode;
     error?: string;
@@ -37,7 +38,7 @@ type FormSelectProps = {
 };
 
 export function FormSelect({
-    label, required, hint, error, wide, name, options, value, defaultValue,
+    label, hideLabel, required, hint, error, wide, name, options, value, defaultValue,
     placeholder = "Selecionar", disabled = false, onChange
 }: FormSelectProps) {
     const select = useFormSelect({ options, value, defaultValue, onChange });
@@ -46,6 +47,7 @@ export function FormSelect({
         <FormField
             id={select.id}
             label={label}
+            hideLabel={hideLabel}
             required={required}
             hint={hint}
             error={error}
@@ -85,9 +87,9 @@ export function FormSelect({
                     <ul
                         id={select.listId}
                         role="listbox"
-                        className="absolute top-full mt-1 left-0 z-40 max-h-65 min-w-full
-                            overflow-y-auto rounded-card border border-line-strong bg-surface p-1
-                            shadow-lg"
+                        className={`absolute left-0 z-40 max-h-65 min-w-full overflow-y-auto
+                            rounded-card border border-line-strong bg-surface p-1 shadow-lg
+                            ${select.acima ? "bottom-full mb-1" : "top-full mt-1"}`}
                     >
                         {options.map((option, at) => (
                             <li
