@@ -40,12 +40,12 @@ export function TablePagination({
                             <FormSelect
                                 label={`${unit ?? "Itens"} por página`}
                                 hideLabel
-                                options={pageSizes.map(tamanho => ({
-                                    value: String(tamanho),
-                                    label: String(tamanho)
+                                options={pageSizes.map(size => ({
+                                    value: String(size),
+                                    label: String(size)
                                 }))}
                                 value={String(pageSize)}
-                                onChange={escolha => onPageSize(Number(escolha))}
+                                onChange={chosen => onPageSize(Number(chosen))}
                             />
                         </div>
                     </div>

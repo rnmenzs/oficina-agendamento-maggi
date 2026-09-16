@@ -65,7 +65,7 @@ export function meta() {
     return [{ title: "Catálogo de componentes" }];
 }
 
-const slug = (texto: string) => texto.replace(/\W/g, "");
+const slug = (text: string) => text.replace(/\W/g, "");
 
 function Folder({ path, children }: { path: string; children: ReactNode }) {
     return (
@@ -282,21 +282,21 @@ function ModalPreview() {
 
 // Um estado só para as três: <dialog> abre na top layer, então duas abertas empilham.
 function ModalSample() {
-    const [aberta, setAberta] = useState<"narrow" | "medium" | "wide" | null>(null);
-    const fechar = () => setAberta(null);
+    const [width, setWidth] = useState<"narrow" | "medium" | "wide" | null>(null);
+    const close = () => setWidth(null);
 
     return (
         <div className="flex flex-wrap gap-3">
-            {(["narrow", "medium", "wide"] as const).map(largura => (
-                <Button key={largura} variant="plain" onClick={() => setAberta(largura)}>
-                    {largura}
+            {(["narrow", "medium", "wide"] as const).map(option => (
+                <Button key={option} variant="plain" onClick={() => setWidth(option)}>
+                    {option}
                 </Button>
             ))}
 
-            <Modal open={aberta !== null} width={aberta ?? "medium"} onClose={fechar}>
+            <Modal open={width !== null} width={width ?? "medium"} onClose={close}>
                 <ModalHeader
                     title="Janela de exemplo"
-                    description={`Largura ${aberta ?? "medium"}. Escape, clique no fundo ou o × fecham.`}
+                    description={`Largura ${width ?? "medium"}. Escape, clique no fundo ou o × fecham.`}
                 />
 
                 <ModalBody>
@@ -307,8 +307,8 @@ function ModalSample() {
                 </ModalBody>
 
                 <ModalFooter>
-                    <Button variant="plain" onClick={fechar}>Voltar</Button>
-                    <Button variant="primary" onClick={fechar}>Confirmar</Button>
+                    <Button variant="plain" onClick={close}>Voltar</Button>
+                    <Button variant="primary" onClick={close}>Confirmar</Button>
                 </ModalFooter>
             </Modal>
         </div>

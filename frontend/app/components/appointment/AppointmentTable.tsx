@@ -19,12 +19,12 @@ type Action = {
 };
 
 // Iniciar e concluir nunca aparecem juntos, então dividem a mesma posição na linha.
-const AVANCAR: Partial<Record<AppointmentStatus, Action>> = {
+const ADVANCE: Partial<Record<AppointmentStatus, Action>> = {
     EmAndamento: { label: "Iniciar serviço", icon: Play, tone: "primary" },
     Concluido: { label: "Concluir serviço", icon: Check, tone: "done" }
 };
 
-const CANCELAR: Action = { label: "Cancelar agendamento", icon: X, tone: "danger" };
+const CANCEL: Action = { label: "Cancelar agendamento", icon: X, tone: "danger" };
 
 // Sem largura fixa: quem decide é o conteúdo. Fixar as colunas espremia o nome do cliente em
 // duas linhas enquanto sobrava espaço na placa.
@@ -41,29 +41,27 @@ const COLUMNS: readonly TableColumn[] = [
 ];
 
 type AppointmentActionsProps = {
-    agendamento: AppointmentResponse;
+    appointment: AppointmentResponse;
     linkTo: string;
-    onAction?: (agendamento: AppointmentResponse, destino: AppointmentStatus) => void;
+    onAction?: (appointment: AppointmentResponse, to: AppointmentStatus) => void;
 };
 
 // O lugar vago continua ocupando espaço: descendo a coluna, o mesmo ponto é sempre a mesma ação,
 // e a seta não anda de uma linha para a outra.
-function AppointmentActions({ agendamento, linkTo, onAction }: AppointmentActionsProps) {
-    const permitidas = allowedTransitions(agendamento.status);
-    const avancar = permitidas.find(destino => AVANCAR[destino]);
+function AppointmentActions({ appointment, linkTo, onAction }: AppointmentActionsProps) {
+    const allowed = allowedTransitions(appointment.status);
+    const advance = allowed.find(status => ADVANCE[status]);
 
-    function botao(destino: AppointmentStatus | undefined, acao: Action | undefined) {
-        if (!destino || !acao) return <span aria-hidden className="size-8" />;
-
-        const nome = `${acao.label} de ${agendamento.placa}`;
+    function button(to: AppointmentStatus | undefined, action: Action | undefined) {
+        if (!to || !action) return <span aria-hidden className="size-8" />;
 
         return (
-            <Tooltip text={acao.label}>
+            <Tooltip text={action.label}>
                 <ButtonIcon
-                    label={nome}
-                    icon={acao.icon}
-                    tone={acao.tone}
-                    onClick={() => onAction?.(agendamento, destino)}
+                    label={`${action.label} de ${appointment.placa}`}
+                    icon={action.icon}
+                    tone={action.tone}
+                    onClick={() => onAction?.(appointment, to)}
                 />
             </Tooltip>
         );
@@ -71,18 +69,18 @@ function AppointmentActions({ agendamento, linkTo, onAction }: AppointmentAction
 
     return (
         <span className="inline-flex items-center gap-1 align-middle">
-            {botao("Cancelado", permitidas.includes("Cancelado") ? CANCELAR : undefined)}
-            {botao(avancar, avancar && AVANCAR[avancar])}
+            {button("Cancelado", allowed.includes("Cancelado") ? CANCEL : undefined)}
+            {button(advance, advance && ADVANCE[advance])}
 
             <span
                 aria-hidden
-                className={`mx-0.5 h-4.5 w-px ${permitidas.length ? "bg-line" : ""}`}
+                className={`mx-0.5 h-4.5 w-px ${allowed.length ? "bg-line" : ""}`}
             />
 
             <Tooltip text="Abrir agendamento">
                 <ButtonIcon
                     to={linkTo}
-                    label={`Abrir agendamento de ${agendamento.nomeDoCliente}`}
+                    label={`Abrir agendamento de ${appointment.nomeDoCliente}`}
                     icon={ChevronRight}
                 />
             </Tooltip>
@@ -91,56 +89,56 @@ function AppointmentActions({ agendamento, linkTo, onAction }: AppointmentAction
 }
 
 type AppointmentTableProps = {
-    agendamentos: readonly AppointmentResponse[];
+    appointments: readonly AppointmentResponse[];
     /** Para onde a seta de cada linha leva. Quem conhece as rotas do sistema é a tela. */
-    linkTo: (agendamento: AppointmentResponse) => string;
-    onAction?: (agendamento: AppointmentResponse, destino: AppointmentStatus) => void;
+    linkTo: (appointment: AppointmentResponse) => string;
+    onAction?: (appointment: AppointmentResponse, to: AppointmentStatus) => void;
 };
 
-export function AppointmentTable({ agendamentos, linkTo, onAction }: AppointmentTableProps) {
+export function AppointmentTable({ appointments, linkTo, onAction }: AppointmentTableProps) {
     return (
         <Table columns={COLUMNS}>
-            {agendamentos.map(agendamento => (
-                <TableRow key={agendamento.id}>
+            {appointments.map(appointment => (
+                <TableRow key={appointment.id}>
                     <TableCell>
                         <span className="font-mono text-xs whitespace-nowrap text-muted">
-                            {formatDayShort(dayOf(agendamento.inicio))}
+                            {formatDayShort(dayOf(appointment.inicio))}
                         </span>
                     </TableCell>
 
                     <TableCell>
                         <div className="flex flex-col leading-tight">
                             <span className="font-mono whitespace-nowrap">
-                                {formatTime(agendamento.inicio)} – {formatTime(agendamento.fim)}
+                                {formatTime(appointment.inicio)} – {formatTime(appointment.fim)}
                             </span>
                             <span className="font-mono text-xs text-muted">
-                                {SERVICE_MINUTES[agendamento.tipoServico]} min
+                                {SERVICE_MINUTES[appointment.tipoServico]} min
                             </span>
                         </div>
                     </TableCell>
 
-                    <TableCell><BadgePlate plate={agendamento.placa} /></TableCell>
+                    <TableCell><BadgePlate plate={appointment.placa} /></TableCell>
 
                     <TableCell>
-                        <span className="font-semibold whitespace-nowrap">{agendamento.modelo}</span>
-                        <span className="ml-1.5 text-muted">{agendamento.ano}</span>
+                        <span className="font-semibold whitespace-nowrap">{appointment.modelo}</span>
+                        <span className="ml-1.5 text-muted">{appointment.ano}</span>
                     </TableCell>
 
                     <TableCell>
-                        <span className="whitespace-nowrap">{agendamento.nomeDoCliente}</span>
+                        <span className="whitespace-nowrap">{appointment.nomeDoCliente}</span>
                     </TableCell>
 
                     <TableCell>
                         <span className="whitespace-nowrap">
-                            {SERVICE_LABEL[agendamento.tipoServico]}
+                            {SERVICE_LABEL[appointment.tipoServico]}
                         </span>
                     </TableCell>
-                    <TableCell><BadgeStatus status={agendamento.status} /></TableCell>
+                    <TableCell><BadgeStatus status={appointment.status} /></TableCell>
 
                     <TableCell right>
                         <AppointmentActions
-                            agendamento={agendamento}
-                            linkTo={linkTo(agendamento)}
+                            appointment={appointment}
+                            linkTo={linkTo(appointment)}
                             onAction={onAction}
                         />
                     </TableCell>

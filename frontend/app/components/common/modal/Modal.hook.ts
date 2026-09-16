@@ -31,14 +31,14 @@ type UseDialog = {
 export function useDialog({ open, onClose }: UseDialog) {
     const box = useRef<HTMLDialogElement>(null);
     const titleId = useId();
-    const aberta = useRef(open);
-    const fechar = useRef(onClose);
+    const isOpen = useRef(open);
+    const close = useRef(onClose);
 
     // Em efeito, não no corpo: escrever em ref durante o render é impuro, e um render descartado
     // pela renderização concorrente deixaria o ref com valor que nunca foi confirmado.
     useEffect(() => {
-        aberta.current = open;
-        fechar.current = onClose;
+        isOpen.current = open;
+        close.current = onClose;
     });
 
     useEffect(() => {
@@ -52,23 +52,23 @@ export function useDialog({ open, onClose }: UseDialog) {
 
         if (!dialog.open) dialog.showModal();
 
-        const alvo = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
-            .find(elemento => !elemento.closest("header"));
+        const target = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
+            .find(element => !element.closest("header"));
 
-        (alvo ?? dialog).focus();
+        (target ?? dialog).focus();
     }, [open]);
 
     useEffect(() => {
         const dialog = box.current;
         if (!dialog) return;
 
-        function avisar() {
-            if (aberta.current) fechar.current();
+        function onDialogClose() {
+            if (isOpen.current) close.current();
         }
 
-        dialog.addEventListener("close", avisar);
+        dialog.addEventListener("close", onDialogClose);
 
-        return () => dialog.removeEventListener("close", avisar);
+        return () => dialog.removeEventListener("close", onDialogClose);
     }, []);
 
     return {

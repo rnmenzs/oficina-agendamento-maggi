@@ -41,7 +41,7 @@ export function useFormSelect({ options, value, defaultValue, onChange }: UseFor
     // Abrir posiciona o destaque no que já está escolhido, não no primeiro da lista.
     function toggle() {
         setActive(Math.max(0, options.findIndex(option => option.value === current)));
-        setOpen(aberto => !aberto);
+        setOpen(wasOpen => !wasOpen);
     }
 
     function onKeyDown(event: KeyboardEvent) {

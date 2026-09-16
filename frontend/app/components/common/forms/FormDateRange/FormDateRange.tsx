@@ -57,7 +57,7 @@ export function FormDateRange({
     placeholder = "Qualquer data", disabled = false, onChange
 }: FormDateRangeProps) {
     const range = useFormDateRange({ value, min, max, onChange });
-    const escolhido = Boolean(value.from || value.to);
+    const chosen = Boolean(value.from || value.to);
 
     return (
         <FormField
@@ -86,8 +86,8 @@ export function FormDateRange({
                     onClick={range.toggle}
                     className={boxClasses(Boolean(error), disabled, range.open)}
                 >
-                    <span className={escolhido ? "whitespace-nowrap" : "text-muted"}>
-                        {escolhido ? rangeLabel(value) : placeholder}
+                    <span className={chosen ? "whitespace-nowrap" : "text-muted"}>
+                        {chosen ? rangeLabel(value) : placeholder}
                     </span>
                     <CalendarDays size={16} aria-hidden className="shrink-0 text-muted" />
                 </button>
@@ -99,7 +99,7 @@ export function FormDateRange({
                         onKeyDown={range.onKeyDown}
                         className={`absolute left-0 z-40 w-max rounded-card border
                             border-line-strong bg-surface p-3 shadow-lg
-                            ${range.acima ? "bottom-full mb-1" : "top-full mt-1"}`}
+                            ${range.up ? "bottom-full mb-1" : "top-full mt-1"}`}
                     >
                         <FormCalendar
                             month={range.month}
@@ -108,16 +108,16 @@ export function FormDateRange({
                             stateOf={range.stateOf}
                             isBlocked={range.isBlocked}
                             onMonth={range.goToMonth}
-                            onChoose={range.escolher}
-                            onHover={range.aoPassar}
+                            onChoose={range.choose}
+                            onHover={range.onHover}
                         />
 
                         <div className="mt-2 flex items-center justify-between gap-3 border-t border-line pt-2">
                             <span aria-live="polite" className="text-xs text-muted">
-                                {range.escolhendo ? "Escolha o dia final" : rangeLabel(range.faixa)}
+                                {range.choosing ? "Escolha o dia final" : rangeLabel(range.range)}
                             </span>
 
-                            <Button disabled={!escolhido && !range.escolhendo} onClick={range.limpar}>
+                            <Button disabled={!chosen && !range.choosing} onClick={range.clear}>
                                 Limpar
                             </Button>
                         </div>

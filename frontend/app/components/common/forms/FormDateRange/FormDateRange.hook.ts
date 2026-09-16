@@ -7,12 +7,12 @@ import { addDays, addMonths, fromDay, toDay } from "~/utils/date";
 import type { CalendarDayState } from "../FormCalendar";
 
 // Calendário, cabeçalho e o rodapé com o "Limpar", mais a folga de `mt-1`.
-const ALTURA = 366;
+const HEIGHT = 366;
 
 const blocked = (day: Day, min?: Day, max?: Day) =>
     Boolean((min && day < min) || (max && day > max));
 
-const ordenar = (a: Day, b: Day): DayRange => (b < a ? { from: b, to: a } : { from: a, to: b });
+const ordered = (a: Day, b: Day): DayRange => (b < a ? { from: b, to: a } : { from: a, to: b });
 
 type UseFormDateRange = {
     value: DayRange;
@@ -25,7 +25,7 @@ export function useFormDateRange({ value, min, max, onChange }: UseFormDateRange
     const today = toDay(new Date());
     const start = value.from || today;
     const [open, setOpen] = useState(false);
-    const [inicio, setInicio] = useState<Day>("");
+    const [anchor, setAnchor] = useState<Day>("");
     const [hover, setHover] = useState<Day>("");
     const [cursor, setCursor] = useState<Day>(start);
     const [month, setMonth] = useState(() => fromDay(start));
@@ -35,33 +35,33 @@ export function useFormDateRange({ value, min, max, onChange }: UseFormDateRange
 
     // Fechar desmonta o calendário, e o foco cairia no <body> — quem usa teclado seria jogado para
     // o topo da página. Só devolve se o foco ainda estava lá dentro: clique fora é outra intenção.
-    function fechar() {
-        const dentro = box.current?.contains(document.activeElement);
+    function close() {
+        const inside = box.current?.contains(document.activeElement);
 
         setOpen(false);
-        setInicio("");
+        setAnchor("");
         setHover("");
 
-        if (dentro) trigger.current?.focus();
+        if (inside) trigger.current?.focus();
     }
 
-    useOutsideClick(box, open, fechar);
+    useOutsideClick(box, open, close);
 
-    const acima = useFlipUp(box, open, ALTURA);
+    const up = useFlipUp(box, open, HEIGHT);
 
-    function focar(day: Day) {
+    function focus(day: Day) {
         requestAnimationFrame(() => {
             box.current?.querySelector<HTMLButtonElement>(`[data-day="${day}"]`)?.focus();
         });
     }
 
-    function mostrar(day: Day) {
+    function show(day: Day) {
         setCursor(day);
         setMonth(fromDay(day));
         // O teclado assume a prévia: sem zerar o hover, a faixa continuaria presa ao último dia
         // por onde o mouse passou.
         setHover("");
-        focar(day);
+        focus(day);
     }
 
     function toggle() {
@@ -69,73 +69,73 @@ export function useFormDateRange({ value, min, max, onChange }: UseFormDateRange
 
         setCursor(at);
         setMonth(fromDay(at));
-        setInicio("");
+        setAnchor("");
         setHover("");
-        setOpen(aberto => !aberto);
+        setOpen(wasOpen => !wasOpen);
 
-        if (!open) focar(at);
+        if (!open) focus(at);
     }
 
     // Dois cliques fecham um período: o primeiro guarda uma ponta, o segundo devolve a faixa
     // pronta. Nada sai daqui no meio do caminho — quem escuta receberia meio período e, na agenda,
     // isso é uma consulta à API por clique.
-    function escolher(day: Day) {
+    function choose(day: Day) {
         if (blocked(day, min, max)) return;
 
-        if (!inicio) {
-            setInicio(day);
+        if (!anchor) {
+            setAnchor(day);
             setHover(day);
             setCursor(day);
 
             return;
         }
 
-        onChange(ordenar(inicio, day));
-        fechar();
+        onChange(ordered(anchor, day));
+        close();
     }
 
-    function limpar() {
+    function clear() {
         onChange({ from: "", to: "" });
-        fechar();
+        close();
     }
 
     function onKeyDown(event: KeyboardEvent) {
         if (event.key === "Escape") {
             event.preventDefault();
 
-            return fechar();
+            return close();
         }
 
-        const dias = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
+        const days = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
 
-        if (dias !== undefined) {
+        if (days !== undefined) {
             event.preventDefault();
 
-            return mostrar(toDay(addDays(fromDay(cursor), dias)));
+            return show(toDay(addDays(fromDay(cursor), days)));
         }
 
         if (event.key === "PageUp" || event.key === "PageDown") {
             event.preventDefault();
 
-            return mostrar(toDay(addMonths(fromDay(cursor), event.key === "PageUp" ? -1 : 1)));
+            return show(toDay(addMonths(fromDay(cursor), event.key === "PageUp" ? -1 : 1)));
         }
 
         if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            escolher(cursor);
+            choose(cursor);
         }
     }
 
     // Enquanto a segunda ponta não vem, a faixa é a que o mouse — ou o cursor do teclado — desenha.
-    const faixa = inicio ? ordenar(inicio, hover || cursor) : value;
+    const range = anchor ? ordered(anchor, hover || cursor) : value;
 
     function stateOf(day: Day): CalendarDayState {
-        const { from, to } = faixa;
+        const { from, to } = range;
 
         if (!from || !to) {
-            const unico = from || to;
+            const single = from || to;
 
-            return unico && day === unico ? "single" : null;
+            return single && day === single ? "single" : null;
         }
 
         if (day === from) return from === to ? "single" : "start";
@@ -145,10 +145,10 @@ export function useFormDateRange({ value, min, max, onChange }: UseFormDateRange
     }
 
     return {
-        id, box, trigger, open, acima, month, cursor, today, faixa, stateOf, escolher, limpar,
+        id, box, trigger, open, up, month, cursor, today, range, stateOf, choose, clear,
         toggle, onKeyDown,
-        escolhendo: Boolean(inicio),
-        aoPassar: (day: Day | null) => setHover(day ?? ""),
+        choosing: Boolean(anchor),
+        onHover: (day: Day | null) => setHover(day ?? ""),
         isBlocked: (day: Day) => blocked(day, min, max),
         goToMonth: (step: number) => setMonth(addMonths(month, step))
     };
