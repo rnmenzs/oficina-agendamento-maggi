@@ -1,5 +1,5 @@
 import { Check, ChevronRight, Play, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { BadgePlate } from "~/components/badge/BadgePlate";
 import { BadgeStatus } from "~/components/badge/BadgeStatus";
@@ -16,6 +16,10 @@ import { FormSearch, type FormSearchOption } from "~/components/forms/FormSearch
 import { FormSelect } from "~/components/forms/FormSelect/FormSelect";
 import { FormText } from "~/components/forms/FormText";
 import { Notification, type NotificationTone } from "~/components/notification/Notification";
+import { Skeleton } from "~/components/skeleton/Skeleton";
+import { SkeletonTable } from "~/components/skeleton/SkeletonTable";
+import { StateEmpty } from "~/components/state/StateEmpty";
+import { StateError } from "~/components/state/StateError";
 import type { AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
 import { SERVICE_LABEL } from "~/utils/service";
 import { STATUS_LABEL } from "~/utils/status";
@@ -39,9 +43,11 @@ export function meta() {
     return [{ title: "Catálogo de componentes" }];
 }
 
+const slug = (texto: string) => texto.replace(/\W/g, "");
+
 function Folder({ path, children }: { path: string; children: ReactNode }) {
     return (
-        <section className="flex flex-col gap-4">
+        <section id={slug(path)} className="flex scroll-mt-6 flex-col gap-4">
             <h2 className="border-b border-line pb-2 font-mono text-lg font-bold text-primary-strong">
                 {path}
             </h2>
@@ -52,7 +58,7 @@ function Folder({ path, children }: { path: string; children: ReactNode }) {
 
 function Component({ name, children }: { name: string; children: ReactNode }) {
     return (
-        <article className="flex flex-col gap-3">
+        <article id={slug(name)} className="flex scroll-mt-6 flex-col gap-3">
             <h3 className="font-mono text-sm font-semibold">{name}</h3>
             <div className="flex flex-col gap-5 rounded-card border border-line bg-surface p-5">
                 {children}
@@ -140,181 +146,359 @@ function RadioSample({ hideLabel = false }: { hideLabel?: boolean }) {
     );
 }
 
+type Section = {
+    id: string;
+    path: string;
+    items: { id: string; name: string }[];
+};
+
+// Lido da própria página depois que ela monta, em vez de repetido à mão: pasta nova aparece
+// sozinha, e o menu nunca lista o que já saiu.
+function useSections() {
+    const [sections, setSections] = useState<Section[]>([]);
+
+    useEffect(() => {
+        setSections([...document.querySelectorAll("section[id]")].map(section => ({
+            id: section.id,
+            path: section.querySelector("h2")?.textContent ?? section.id,
+            items: [...section.querySelectorAll("article[id]")].map(article => ({
+                id: article.id,
+                name: article.querySelector("h3")?.textContent ?? article.id
+            }))
+        })));
+    }, []);
+
+    return sections;
+}
+
+// Numa página de milhares de pixels, saber onde se está vale mais que a lista. A faixa de
+// observação é só o topo da tela, senão meia dúzia de seções ficaria ativa ao mesmo tempo.
+function useActive(ready: boolean) {
+    const [active, setActive] = useState("");
+
+    useEffect(() => {
+        if (!ready) return;
+
+        const observer = new IntersectionObserver(
+            entries => {
+                const visible = entries.find(entry => entry.isIntersecting);
+                if (visible) setActive(visible.target.id);
+            },
+            { rootMargin: "0px 0px -85% 0px" }
+        );
+
+        for (const article of document.querySelectorAll("article[id]")) observer.observe(article);
+
+        return () => observer.disconnect();
+    }, [ready]);
+
+    return active;
+}
+
+function Menu() {
+    const sections = useSections();
+    const active = useActive(sections.length > 0);
+
+    return (
+        <nav aria-label="Componentes" className="flex flex-col gap-5">
+            {sections.map(section => {
+                const here = section.items.some(item => item.id === active);
+
+                return (
+                    <div key={section.id} className="flex flex-col gap-1.5">
+                        <a
+                            href={`#${section.id}`}
+                            className={`font-mono text-sm font-bold no-underline transition-colors
+                                ${here ? "text-primary-strong" : "text-muted hover:text-ink"}`}
+                        >
+                            {section.path}
+                        </a>
+
+                        <ul className="flex flex-col">
+                            {section.items.map(item => (
+                                <li key={item.id} className="flex">
+                                    <a
+                                        href={`#${item.id}`}
+                                        aria-current={item.id === active ? "location" : undefined}
+                                        className={`flex-1 border-l py-1 pl-3 font-mono text-xs
+                                            no-underline transition-colors ${item.id === active
+                                                ? "border-primary bg-primary-soft font-semibold text-primary"
+                                                : "border-line text-muted hover:border-line-strong hover:text-ink"}`}
+                                    >
+                                        {item.name}
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                );
+            })}
+        </nav>
+    );
+}
+
 export default function Catalogo() {
     return (
-        <main className="mx-auto flex max-w-6xl flex-col gap-9 px-5 py-6">
-            <header>
-                <h1 className="text-2xl font-semibold tracking-tight">Catálogo</h1>
-                <p className="text-sm text-muted">
-                    Os componentes por pasta, cada um em todos os seus estados.
-                </p>
-            </header>
+        <div className="flex min-h-screen">
+            <aside
+                className="sticky top-0 hidden h-screen w-60 shrink-0 overflow-y-auto border-r
+                    border-line bg-surface px-5 py-6 lg:block"
+            >
+                <header className="mb-6">
+                    <p className="text-lg font-semibold tracking-tight">Catálogo</p>
+                    <p className="text-xs text-muted">Cada componente em todos os seus estados.</p>
+                </header>
 
-            <Folder path="badge/">
-                <Component name="BadgePlate">
-                    <Usage code='<BadgePlate plate="ABC1234" />  formato antigo, ganha hífen'>
-                        <BadgePlate plate="ABC1234" />
-                    </Usage>
-                    <Usage code='<BadgePlate plate="ABC1D23" />  Mercosul, fica sem hífen'>
-                        <BadgePlate plate="ABC1D23" />
-                    </Usage>
-                    <Usage code='<BadgePlate plate="abc-1234" />  normaliza o que vier'>
-                        <BadgePlate plate="abc-1234" />
-                    </Usage>
-                </Component>
+                <Menu />
+            </aside>
 
-                <Component name="BadgeStatus">
-                    <Usage code="<BadgeStatus status={...} />  os quatro status">
-                        {STATUSES.map(status => <BadgeStatus key={status} status={status} />)}
-                    </Usage>
-                </Component>
-            </Folder>
+            <main className="mx-auto flex min-w-0 max-w-5xl flex-1 flex-col gap-9 px-6 py-8">
+                <header className="lg:hidden">
+                    <h1 className="text-2xl font-semibold tracking-tight">Catálogo</h1>
+                    <p className="text-sm text-muted">
+                        Os componentes por pasta, cada um em todos os seus estados.
+                    </p>
+                </header>
 
-            <Folder path="button/">
-                <Component name="Button">
-                    <Usage code='<Button variant="primary">Agendar</Button>'>
-                        <Button variant="primary">Agendar</Button>
-                        <Button variant="plain">Voltar</Button>
-                        <Button variant="danger">Cancelar agendamento</Button>
-                        <Button variant="dangerStrong">Confirmar cancelamento</Button>
-                    </Usage>
-                    <Usage code='<Button to="/agendamentos">  com "to" vira link'>
-                        <Button to="/catalogo" variant="primary">Novo agendamento</Button>
-                        <Button to="/catalogo" variant="plain">Ver clientes</Button>
-                    </Usage>
-                    <Usage code="<Button disabled>">
-                        <Button variant="primary" disabled>Agendar</Button>
-                        <Button variant="plain" disabled>Voltar</Button>
-                    </Usage>
-                </Component>
+                <Folder path="badge/">
+                    <Component name="BadgePlate">
+                        <Usage code='<BadgePlate plate="ABC1234" />  formato antigo, ganha hífen'>
+                            <BadgePlate plate="ABC1234" />
+                        </Usage>
+                        <Usage code='<BadgePlate plate="ABC1D23" />  Mercosul, fica sem hífen'>
+                            <BadgePlate plate="ABC1D23" />
+                        </Usage>
+                        <Usage code='<BadgePlate plate="abc-1234" />  normaliza o que vier'>
+                            <BadgePlate plate="abc-1234" />
+                        </Usage>
+                    </Component>
 
-                <Component name="ButtonIcon">
-                    <Usage code='<ButtonIcon label="Iniciar serviço" icon={Play} tone="primary" />'>
-                        <ButtonIcon label="Iniciar serviço" icon={Play} tone="primary" />
-                        <ButtonIcon label="Concluir serviço" icon={Check} tone="done" />
-                        <ButtonIcon label="Cancelar agendamento" icon={X} tone="danger" />
-                        <ButtonIcon label="Fechar" icon={X} size={18} />
-                        <ButtonIcon label="Desabilitado" icon={Play} tone="primary" disabled />
-                    </Usage>
-                    <Usage code='<ButtonIcon to="..." label="Abrir agendamento" icon={ChevronRight} />'>
-                        <ButtonIcon to="/catalogo" label="Abrir agendamento" icon={ChevronRight} />
-                    </Usage>
-                </Component>
-            </Folder>
+                    <Component name="BadgeStatus">
+                        <Usage code="<BadgeStatus status={...} />  os quatro status">
+                            {STATUSES.map(status => <BadgeStatus key={status} status={status} />)}
+                        </Usage>
+                    </Component>
+                </Folder>
 
-            <Folder path="forms/">
-                <Component name="FormDate">
-                    <Usage code="<FormDate />  calendário nosso, sem o do navegador" layout="grid">
-                        <FormDate label="Data" required />
-                        <FormDate label="Data" defaultValue="2026-09-16" />
-                    </Usage>
-                    <Usage code='<FormDate min="2026-09-16" />  bloqueia o passado, como a regra 1' layout="grid">
-                        <FormDate label="Data" min="2026-09-16" hint="Não dá para marcar antes de hoje." />
-                        <FormDate label="Data" defaultValue="2026-09-16" error="Escolha uma data." />
-                    </Usage>
-                </Component>
+                <Folder path="button/">
+                    <Component name="Button">
+                        <Usage code='<Button variant="primary">Agendar</Button>'>
+                            <Button variant="primary">Agendar</Button>
+                            <Button variant="plain">Voltar</Button>
+                            <Button variant="danger">Cancelar agendamento</Button>
+                            <Button variant="dangerStrong">Confirmar cancelamento</Button>
+                        </Usage>
+                        <Usage code='<Button to="/agendamentos">  com "to" vira link'>
+                            <Button to="/catalogo" variant="primary">Novo agendamento</Button>
+                            <Button to="/catalogo" variant="plain">Ver clientes</Button>
+                        </Usage>
+                        <Usage code="<Button disabled>">
+                            <Button variant="primary" disabled>Agendar</Button>
+                            <Button variant="plain" disabled>Voltar</Button>
+                        </Usage>
+                    </Component>
 
-                <Component name="FormDateRange">
-                    <Usage code="<FormDateRange value onChange />  mover o de para depois do até empurra o até">
-                        <DateRangeSample />
-                    </Usage>
-                </Component>
+                    <Component name="ButtonIcon">
+                        <Usage code='<ButtonIcon label="Iniciar serviço" icon={Play} tone="primary" />'>
+                            <ButtonIcon label="Iniciar serviço" icon={Play} tone="primary" />
+                            <ButtonIcon label="Concluir serviço" icon={Check} tone="done" />
+                            <ButtonIcon label="Cancelar agendamento" icon={X} tone="danger" />
+                            <ButtonIcon label="Fechar" icon={X} size={18} />
+                            <ButtonIcon label="Desabilitado" icon={Play} tone="primary" disabled />
+                        </Usage>
+                        <Usage code='<ButtonIcon to="..." label="Abrir agendamento" icon={ChevronRight} />'>
+                            <ButtonIcon to="/catalogo" label="Abrir agendamento" icon={ChevronRight} />
+                        </Usage>
+                    </Component>
+                </Folder>
 
-                <Component name="FormEmail">
-                    <Usage code="<FormEmail label />  teclado de e-mail, sem corretor, limite de 254" layout="grid">
-                        <FormEmail label="E-mail" placeholder="maria@email.com" required />
-                        <FormEmail
-                            label="E-mail"
-                            defaultValue="maria@email.com"
-                            error="Já existe um cliente com este e-mail."
-                        />
-                    </Usage>
-                </Component>
+                <Folder path="forms/">
+                    <Component name="FormDate">
+                        <Usage code="<FormDate />  calendário nosso, sem o do navegador" layout="grid">
+                            <FormDate label="Data" required />
+                            <FormDate label="Data" defaultValue="2026-09-16" />
+                        </Usage>
+                        <Usage code='<FormDate min="2026-09-16" />  bloqueia o passado, como a regra 1' layout="grid">
+                            <FormDate label="Data" min="2026-09-16" hint="Não dá para marcar antes de hoje." />
+                            <FormDate label="Data" defaultValue="2026-09-16" error="Escolha uma data." />
+                        </Usage>
+                    </Component>
 
-                <Component name="FormNumber">
-                    <Usage code="<FormNumber digits={4} />  só dígito passa, sem setinha do navegador" layout="grid">
-                        <FormNumber label="Ano" digits={4} placeholder="2024" required />
-                        <FormNumber label="Ano" digits={4} defaultValue={2030} error="Ano deve estar entre 1900 e 2027." />
-                    </Usage>
-                </Component>
+                    <Component name="FormDateRange">
+                        <Usage code="<FormDateRange value onChange />  mover o de para depois do até empurra o até">
+                            <DateRangeSample />
+                        </Usage>
+                    </Component>
 
-                <Component name="FormPhone">
-                    <Usage code="<FormPhone label />  formata a cada tecla, digite para ver" layout="grid">
-                        <FormPhone label="Telefone" required />
-                        <FormPhone label="Telefone" defaultValue="1132654321" hint="Fixo quebra em 4-4." />
-                    </Usage>
-                    <Usage code="<FormPhone defaultValue error disabled />" layout="grid">
-                        <FormPhone label="Telefone" defaultValue="11987654321" error="Telefone inválido." />
-                        <FormPhone label="Telefone" defaultValue="5511987654321" disabled />
-                    </Usage>
-                </Component>
+                    <Component name="FormEmail">
+                        <Usage code="<FormEmail label />  teclado de e-mail, sem corretor, limite de 254" layout="grid">
+                            <FormEmail label="E-mail" placeholder="maria@email.com" required />
+                            <FormEmail
+                                label="E-mail"
+                                defaultValue="maria@email.com"
+                                error="Já existe um cliente com este e-mail."
+                            />
+                        </Usage>
+                    </Component>
 
-                <Component name="FormPlate">
-                    <Usage code="<FormPlate />  maiúsculas sempre, hífen só quando a placa fecha" layout="grid">
-                        <FormPlate label="Placa" required />
-                        <FormPlate label="Placa" defaultValue="abc1234" hint="Formato antigo ganha hífen." />
-                    </Usage>
-                </Component>
+                    <Component name="FormNumber">
+                        <Usage code="<FormNumber digits={4} />  só dígito passa, sem setinha do navegador" layout="grid">
+                            <FormNumber label="Ano" digits={4} placeholder="2024" required />
+                            <FormNumber label="Ano" digits={4} defaultValue={2030} error="Ano deve estar entre 1900 e 2027." />
+                        </Usage>
+                    </Component>
 
-                <Component name="FormRadio">
-                    <Usage code="<FormRadio value onChange />  rótulo pelo FormField, setas andam entre as opções">
-                        <RadioSample />
-                    </Usage>
-                    <Usage code="<FormRadio hideLabel />  some da tela, continua no leitor de tela">
-                        <RadioSample hideLabel />
-                    </Usage>
-                </Component>
+                    <Component name="FormPhone">
+                        <Usage code="<FormPhone label />  formata a cada tecla, digite para ver" layout="grid">
+                            <FormPhone label="Telefone" required />
+                            <FormPhone label="Telefone" defaultValue="1132654321" hint="Fixo quebra em 4-4." />
+                        </Usage>
+                        <Usage code="<FormPhone defaultValue error disabled />" layout="grid">
+                            <FormPhone label="Telefone" defaultValue="11987654321" error="Telefone inválido." />
+                            <FormPhone label="Telefone" defaultValue="5511987654321" disabled />
+                        </Usage>
+                    </Component>
 
-                <Component name="FormSearch">
-                    <Usage code="<FormSearch options={...} />  digite jose e ache também José" layout="grid">
-                        <FormSearch label="Cliente" name="clienteId" options={CLIENTS} required />
-                        <FormSearch label="Cliente" options={CLIENTS} defaultValue="3" />
-                    </Usage>
-                    <Usage code="<FormSearch error />  e <FormSearch disabled />" layout="grid">
-                        <FormSearch label="Cliente" options={CLIENTS} error="Escolha um cliente." />
-                        <FormSearch label="Cliente" options={CLIENTS} defaultValue="5" disabled />
-                    </Usage>
-                </Component>
+                    <Component name="FormPlate">
+                        <Usage code="<FormPlate />  maiúsculas sempre, hífen só quando a placa fecha" layout="grid">
+                            <FormPlate label="Placa" required />
+                            <FormPlate label="Placa" defaultValue="abc1234" hint="Formato antigo ganha hífen." />
+                        </Usage>
+                    </Component>
 
-                <Component name="FormSelect">
-                    <Usage code="<FormSelect options={...} defaultValue />  fechado, abre no clique" layout="grid">
-                        <FormSelect label="Status" options={STATUS_OPTIONS} defaultValue="Agendado" required />
-                        <FormSelect label="Status" options={STATUS_OPTIONS} placeholder="Todos" />
-                    </Usage>
-                    <Usage code="<FormSelect error />  e <FormSelect disabled />" layout="grid">
-                        <FormSelect label="Status" options={STATUS_OPTIONS} error="Escolha um status." />
-                        <FormSelect label="Status" options={STATUS_OPTIONS} defaultValue="Concluido" disabled />
-                    </Usage>
-                </Component>
+                    <Component name="FormRadio">
+                        <Usage code="<FormRadio value onChange />  rótulo pelo FormField, setas andam entre as opções">
+                            <RadioSample />
+                        </Usage>
+                        <Usage code="<FormRadio hideLabel />  some da tela, continua no leitor de tela">
+                            <RadioSample hideLabel />
+                        </Usage>
+                    </Component>
 
-                <Component name="FormText">
-                    <Usage code="<FormText required />  a estrela marca o obrigatório" layout="grid">
-                        <FormText label="Nome" placeholder="Maria Silva" hint="Como aparece na ordem de serviço." required />
-                        <FormText label="Modelo" placeholder="Gol 1.0" />
-                    </Usage>
-                    <Usage code="<FormText error />  a dica some, o erro ocupa o lugar" layout="grid">
-                        <FormText
-                            label="Modelo"
-                            defaultValue="G"
-                            hint="Esta dica não aparece."
-                            error="Modelo deve ter ao menos 2 caracteres."
-                        />
-                    </Usage>
-                    <Usage code="<FormText disabled />  e <FormText wide />, que atravessa a grade" layout="grid">
-                        <FormText label="Placa" defaultValue="ABC1D23" disabled />
-                        <FormText label="Observação" placeholder="Opcional" wide />
-                    </Usage>
-                </Component>
-            </Folder>
+                    <Component name="FormSearch">
+                        <Usage code="<FormSearch options={...} />  digite jose e ache também José" layout="grid">
+                            <FormSearch label="Cliente" name="clienteId" options={CLIENTS} required />
+                            <FormSearch label="Cliente" options={CLIENTS} defaultValue="3" />
+                        </Usage>
+                        <Usage code="<FormSearch error />  e <FormSearch disabled />" layout="grid">
+                            <FormSearch label="Cliente" options={CLIENTS} error="Escolha um cliente." />
+                            <FormSearch label="Cliente" options={CLIENTS} defaultValue="5" disabled />
+                        </Usage>
+                    </Component>
 
-            <Folder path="notification/">
-                <Component name="Notification">
-                    <Usage code="<Notification tone onClose>{texto}</Notification>" layout="stack">
-                        <NotificationSample />
-                    </Usage>
-                </Component>
-            </Folder>
+                    <Component name="FormSelect">
+                        <Usage code="<FormSelect options={...} defaultValue />  fechado, abre no clique" layout="grid">
+                            <FormSelect label="Status" options={STATUS_OPTIONS} defaultValue="Agendado" required />
+                            <FormSelect label="Status" options={STATUS_OPTIONS} placeholder="Todos" />
+                        </Usage>
+                        <Usage code="<FormSelect error />  e <FormSelect disabled />" layout="grid">
+                            <FormSelect label="Status" options={STATUS_OPTIONS} error="Escolha um status." />
+                            <FormSelect label="Status" options={STATUS_OPTIONS} defaultValue="Concluido" disabled />
+                        </Usage>
+                    </Component>
 
-        </main>
+                    <Component name="FormText">
+                        <Usage code="<FormText required />  a estrela marca o obrigatório" layout="grid">
+                            <FormText label="Nome" placeholder="Maria Silva" hint="Como aparece na ordem de serviço." required />
+                            <FormText label="Modelo" placeholder="Gol 1.0" />
+                        </Usage>
+                        <Usage code="<FormText error />  a dica some, o erro ocupa o lugar" layout="grid">
+                            <FormText
+                                label="Modelo"
+                                defaultValue="G"
+                                hint="Esta dica não aparece."
+                                error="Modelo deve ter ao menos 2 caracteres."
+                            />
+                        </Usage>
+                        <Usage code="<FormText disabled />  e <FormText wide />, que atravessa a grade" layout="grid">
+                            <FormText label="Placa" defaultValue="ABC1D23" disabled />
+                            <FormText label="Observação" placeholder="Opcional" wide />
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="notification/">
+                    <Component name="Notification">
+                        <Usage code="<Notification tone onClose>{texto}</Notification>" layout="stack">
+                            <NotificationSample />
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="skeleton/">
+                    <Component name="Skeleton">
+                        <Usage code="<Skeleton />  sem filhos, vira barra" layout="stack">
+                            <Skeleton />
+                            <Skeleton className="h-3 w-2/5" />
+                            <Skeleton className="h-8 w-1/4" />
+                        </Usage>
+                        <Usage
+                            code="<Skeleton>{...}</Skeleton>  com filhos, vira caixa: o esqueleto de qualquer tela sai daqui, aninhando"
+                            layout="stack"
+                        >
+                            <Skeleton
+                                label="Carregando"
+                                className="flex w-full flex-col gap-4 rounded-card border border-line bg-surface p-4"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <Skeleton className="size-12 rounded-full" />
+                                    <div className="flex flex-1 flex-col gap-2">
+                                        <Skeleton className="h-5 w-2/5" />
+                                        <Skeleton className="h-3 w-1/4" />
+                                    </div>
+                                    <Skeleton className="h-6 w-24 rounded-full" />
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <Skeleton />
+                                    <Skeleton />
+                                    <Skeleton />
+                                </div>
+                            </Skeleton>
+                        </Usage>
+                    </Component>
+
+                    <Component name="SkeletonTable">
+                        <Usage code="<SkeletonTable columns={5} />  a única forma que se repete" layout="grid">
+                            <SkeletonTable columns={5} />
+                            <SkeletonTable columns={3} rows={2} />
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="state/">
+                    <Component name="StateEmpty">
+                        <Usage code="<StateEmpty title description>{ação}</StateEmpty>" layout="stack">
+                            <StateEmpty
+                                title="Nenhum agendamento neste período"
+                                description="Tente outro intervalo de datas, ou marque um serviço novo."
+                            >
+                                <Button to="/catalogo" variant="primary">Novo agendamento</Button>
+                            </StateEmpty>
+                        </Usage>
+                        <Usage code='<StateEmpty label="Erro 404" />  é o que a página de 404 usa' layout="stack">
+                            <StateEmpty
+                                label="Erro 404"
+                                title="Página não encontrada"
+                                description="O endereço não existe ou foi movido."
+                            >
+                                <Button to="/catalogo" variant="plain">Voltar para a agenda</Button>
+                            </StateEmpty>
+                        </Usage>
+                    </Component>
+
+                    <Component name="StateError">
+                        <Usage code="<StateError description={erro da API}>{ação}</StateError>" layout="stack">
+                            <StateError description="O servidor demorou demais para responder.">
+                                <Button variant="primary">Tentar de novo</Button>
+                            </StateError>
+                        </Usage>
+                        <Usage code="<StateError />  sem detalhe, quando a falha não tem mensagem" layout="stack">
+                            <StateError />
+                        </Usage>
+                    </Component>
+                </Folder>
+
+            </main>
+        </div>
     );
 }
