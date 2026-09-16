@@ -25,6 +25,7 @@ import { ModalHeader } from "~/components/common/modal/ModalHeader";
 import { NavBar, type NavBarSection } from "~/components/common/navbar/NavBar";
 import { NavBarLink } from "~/components/common/navbar/NavBarLink";
 import { Notification, type NotificationTone } from "~/components/common/notification/Notification";
+import { useNotification } from "~/hooks/useNotification";
 import { PageHeader } from "~/components/common/page/PageHeader";
 import { Skeleton } from "~/components/common/skeleton/Skeleton";
 import { SkeletonTable } from "~/components/common/skeleton/SkeletonTable";
@@ -114,6 +115,22 @@ const INITIAL_NOTES: readonly { id: number; tone: NotificationTone; text: string
     { id: 3, tone: "warning", text: "Faltam menos de 2 horas: este agendamento não pode mais ser cancelado." },
     { id: 4, tone: "error", text: "Este veículo já tem um agendamento nesse horário." }
 ];
+
+// A pilha de verdade: o contexto guarda os avisos e a região os desenha no canto. Sucesso e
+// informação somem sozinhos; alerta e erro esperam alguém fechar.
+function NotificationTrigger() {
+    const { avisar } = useNotification();
+
+    return (
+        <>
+            {INITIAL_NOTES.map(nota => (
+                <Button key={nota.id} onClick={() => avisar(nota.text, nota.tone)}>
+                    {nota.tone}
+                </Button>
+            ))}
+        </>
+    );
+}
 
 function NotificationSample() {
     const [notes, setNotes] = useState(INITIAL_NOTES);
@@ -608,6 +625,9 @@ export default function Catalogo() {
                     <Component name="Notification">
                         <Usage code="<Notification tone onClose>{texto}</Notification>" layout="stack">
                             <NotificationSample />
+                        </Usage>
+                        <Usage code="const { avisar } = useNotification()  o aviso nasce no canto, por cima de qualquer tela">
+                            <NotificationTrigger />
                         </Usage>
                     </Component>
                 </Folder>
