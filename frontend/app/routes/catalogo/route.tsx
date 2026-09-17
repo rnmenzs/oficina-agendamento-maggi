@@ -47,11 +47,15 @@ import { AppointmentStatusBar } from "~/components/appointment/AppointmentStatus
 import { AppointmentSummary } from "~/components/appointment/AppointmentSummary";
 import { AppointmentTable } from "~/components/appointment/AppointmentTable";
 import { ClientForm } from "~/components/client/ClientForm";
+import { ClientAppointmentTable } from "~/components/client/ClientAppointmentTable";
 import { ClientTable } from "~/components/client/ClientTable";
+import { ClientVehicleTable } from "~/components/client/ClientVehicleTable";
+import { VehicleForm } from "~/components/client/VehicleForm";
 import type {
     AppointmentDetailResponse, AppointmentResponse, AppointmentStatus, ServiceType
 } from "~/types/TypeAppointment";
 import type { ClientResponse } from "~/types/TypeClient";
+import type { VehicleResponse } from "~/types/TypeVehicle";
 import { periodOf, shortcutOf, type PeriodShortcut } from "~/utils/period";
 import { slotsOfDay } from "~/utils/schedule";
 import { SERVICE_LABEL } from "~/utils/service";
@@ -121,6 +125,17 @@ const CLIENT_LIST: readonly ClientResponse[] = [
 ];
 
 const VEHICLE_COUNT: Record<string, number> = { c1: 2, c2: 1, c3: 0 };
+
+const VEHICLE_LIST: readonly VehicleResponse[] = [
+    {
+        id: "v1", clienteId: "c1", placa: "ABC1D23", modelo: "Volkswagen Polo", ano: 2023,
+        criadoEm: "2026-09-01T12:00:00+00:00", atualizadoEm: "2026-09-01T12:00:00+00:00"
+    },
+    {
+        id: "v2", clienteId: "c1", placa: "DEF5678", modelo: "Chevrolet Onix", ano: 2019,
+        criadoEm: "2026-09-05T12:00:00+00:00", atualizadoEm: "2026-09-05T12:00:00+00:00"
+    }
+];
 
 const APPOINTMENT_DETAIL: AppointmentDetailResponse = {
     ...APPOINTMENT,
@@ -1041,6 +1056,22 @@ export default function Catalogo() {
                         </Usage>
                     </Component>
 
+                    <Component name="ClientVehicleTable">
+                        <Usage code="<ClientVehicleTable vehicles />  a frota do cliente na ficha dele" layout="stack">
+                            <Card>
+                                <ClientVehicleTable vehicles={VEHICLE_LIST} />
+                            </Card>
+                        </Usage>
+                    </Component>
+
+                    <Component name="ClientAppointmentTable">
+                        <Usage code="<ClientAppointmentTable appointments linkTo />  sem as colunas de cliente e veículo" layout="stack">
+                            <Card>
+                                <ClientAppointmentTable appointments={APPOINTMENTS} linkTo={() => "/catalogo"} />
+                            </Card>
+                        </Usage>
+                    </Component>
+
                     <Component name="ClientForm">
                         <Usage code="<ClientForm onSubmit onCancel />  o conteúdo da janela de cadastro" layout="stack">
                             <div className="w-full max-w-100 rounded-card border border-line bg-surface shadow-card">
@@ -1051,6 +1082,15 @@ export default function Catalogo() {
                         </Usage>
                     </Component>
 
+                    <Component name="VehicleForm">
+                        <Usage code="<VehicleForm clientName onSubmit onCancel />  cadastro de veículo na ficha" layout="stack">
+                            <div className="w-full max-w-100 rounded-card border border-line bg-surface shadow-card">
+                                <ModalControlProvider value={{ titleId: "exemplo-de-veiculo", onClose: () => {} }}>
+                                    <VehicleForm clientName="Ana Souza" onSubmit={() => {}} onCancel={() => {}} />
+                                </ModalControlProvider>
+                            </div>
+                        </Usage>
+                    </Component>
                 </Folder>
             </main>
         </div>
