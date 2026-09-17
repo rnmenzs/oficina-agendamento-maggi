@@ -139,3 +139,7 @@ static string? FindFileUpwards(string fileName)
     }
     return null;
 }
+
+// O WebApplicationFactory dos testes de integração precisa de um tipo público para apontar; com
+// top-level statements, a classe Program é gerada interna, e esta declaração parcial a expõe.
+public partial class Program;
