@@ -288,7 +288,7 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         // Filtro opcional resolvido no próprio SQL: com o parâmetro nulo a condição vira verdadeira
         // e o Postgres a descarta.
         // Comparação direta contra a coluna, sem função em volta dela: com função o índice de
-        // inicio não seria usado. Quem traduz dia em faixa é o HorarioDaOficina.
+        // inicio não seria usado. Quem traduz dia em faixa é Agendamento.InicioDoDia, na BLL.
         // Os casts são obrigatórios: sem eles o Postgres não consegue deduzir o tipo do parâmetro,
         // porque o primeiro uso é um IS NULL, que serve para qualquer tipo.
         // O cliente entra por subconsulta, e não por junção: a contagem não tem junção nenhuma, e
