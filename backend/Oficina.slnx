@@ -7,6 +7,7 @@
     <Project Path="src/Oficina.DTO/Oficina.DTO.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Oficina.IntegrationTests/Oficina.IntegrationTests.csproj" />
     <Project Path="tests/Oficina.Tests/Oficina.Tests.csproj" />
   </Folder>
 </Solution>
