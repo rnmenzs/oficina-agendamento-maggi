@@ -20,7 +20,6 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 LOGS="$PWD/.run"
-API_URL="http://localhost:5062"
 WEB_URL="http://localhost:5173"
 ESPERA=90
 
@@ -93,6 +92,14 @@ precisa pnpm   "Rode 'corepack enable' para ter o pnpm."
 [ -f .env ] || { erro "Falta o .env na raiz. Copie o .env.example e preencha usuário, senha e banco."; exit 1; }
 [ -f frontend/.env ] || cp frontend/.env.example frontend/.env
 
+# Uma porta só para a API, valendo para tudo: o Compose publica nela, este script espera por ela,
+# e o frontend a recebe por VITE_API_URL — que o Vite prefere ao .env dele. Ambiente ganha do
+# arquivo, como no Compose; sem nenhum dos dois, 5062.
+PORTA_API="${API_PORT:-$(env_de API_PORT)}"
+PORTA_API="${PORTA_API:-5062}"
+export API_PORT="$PORTA_API"
+API_URL="http://localhost:$PORTA_API"
+
 # Registro limpo a cada execução: log de ontem misturado com o de agora só atrapalha quem está
 # procurando por que alguma coisa não subiu.
 mkdir -p "$LOGS"
@@ -102,7 +109,7 @@ rm -f "$LOGS"/*.log
 # portas, para a 5062 não ser acusada de ocupada por ele mesmo.
 docker compose stop api < /dev/null >/dev/null 2>&1 || true
 
-for porta in 5062 5173; do
+for porta in "$PORTA_API" 5173; do
     ocupada "$porta" && { erro "A porta $porta já está em uso. Derrube o processo que está nela e rode de novo."; exit 1; }
 done
 
@@ -157,7 +164,7 @@ subir_banco() {
 # reiniciar mesmo quando a imagem é a mesma. O log do container vai para .run/api.log, como
 # sempre foi, por um `docker compose logs -f` que fica de pé enquanto a API estiver.
 subir_api() {
-    porta_livre 5062 || return 1
+    porta_livre "$PORTA_API" || return 1
 
     # stdin fechado nos dois, como no frontend: o terminal é do laço de teclas lá embaixo, e um
     # processo em segundo plano que o toca é parado pelo sistema (SIGTTIN) sem avisar ninguém.
@@ -189,7 +196,7 @@ subir_web() {
     # stdin fechado: o vite também escuta teclas (o "r" dele reinicia só o servidor dele), e as
     # teclas deste terminal são do laço lá embaixo.
     azul "Subindo o frontend…"
-    setsid pnpm --dir frontend dev < /dev/null > "$LOGS/web.log" 2>&1 &
+    VITE_API_URL="$API_URL/api" setsid pnpm --dir frontend dev < /dev/null > "$LOGS/web.log" 2>&1 &
     WEB_PID=$!
     esperar "$WEB_URL" "O frontend" "$LOGS/web.log"
 }

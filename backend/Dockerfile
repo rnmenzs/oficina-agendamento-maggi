@@ -27,6 +27,10 @@ RUN apt-get update \
 
 COPY --from=build /app .
 
+# A API não precisa de root: a imagem oficial já traz o usuário `app` (APP_UID) e escuta na
+# 8080, que não exige privilégio. Depois do apt, que é o único passo que precisava.
+USER $APP_UID
+
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 

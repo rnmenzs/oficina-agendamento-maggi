@@ -53,7 +53,7 @@ O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo ba
 | `DB_PORT` | `5432` | Porta exposta no host |
 | `CONNECTION_STRING` | `Host=localhost;Port=5432;...` | Connection string do backend, montada com os mesmos usuário, senha, banco e porta |
 | `CORS_ORIGINS` | `http://localhost:5173` | Origens permitidas no CORS (separadas por vírgula) |
-| `API_PORT` | `5062` | Porta exposta no host para a API quando ela sobe pelo Compose |
+| `API_PORT` | `5062` | Porta da API no host, para o Compose, para o `run.sh` e para o frontend (que a recebe como `VITE_API_URL`) |
 
 > **Nota:** O `.env` está no `.gitignore`. Apenas o `.env.example` é versionado.
 
