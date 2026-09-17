@@ -11,4 +11,16 @@ public class StatusAgendamentoTests
 
         Assert.Equal(esperados, Enum.GetNames<StatusAgendamento>());
     }
+
+    // Os rótulos são os mesmos que o frontend mostra nos selos (STATUS_LABEL): a frase da API e a
+    // tela falam do mesmo estado com as mesmas palavras.
+    [Theory]
+    [InlineData(StatusAgendamento.Agendado, "Agendado")]
+    [InlineData(StatusAgendamento.EmAndamento, "Em andamento")]
+    [InlineData(StatusAgendamento.Concluido, "Concluído")]
+    [InlineData(StatusAgendamento.Cancelado, "Cancelado")]
+    public void Rotulo_e_o_que_a_pessoa_le(StatusAgendamento status, string rotulo)
+    {
+        Assert.Equal(rotulo, status.Rotulo());
+    }
 }

@@ -136,7 +136,9 @@ public sealed class Agendamento
     {
         if (Status != de)
         {
-            throw new DomainException($"Não é possível mudar de {Status} para {para}.");
+            throw new DomainException(
+                $"Não é possível mudar de \"{Status.Rotulo()}\" para \"{para.Rotulo()}\"."
+            );
         }
     }
 

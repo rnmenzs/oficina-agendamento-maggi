@@ -9,3 +9,18 @@ public enum StatusAgendamento
     Concluido,
     Cancelado
 }
+
+public static class StatusAgendamentoExtensions
+{
+    // O nome do enum é valor interno: é o que o banco grava e o que a API troca. Numa frase para a
+    // pessoa vai o rótulo, o mesmo que a interface mostra nos selos — "EmAndamento" numa mensagem
+    // de erro é vazamento de código para a tela.
+    public static string Rotulo(this StatusAgendamento status) => status switch
+    {
+        StatusAgendamento.Agendado => "Agendado",
+        StatusAgendamento.EmAndamento => "Em andamento",
+        StatusAgendamento.Concluido => "Concluído",
+        StatusAgendamento.Cancelado => "Cancelado",
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, "Status sem rótulo.")
+    };
+}

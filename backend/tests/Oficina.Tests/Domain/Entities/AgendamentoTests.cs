@@ -143,13 +143,18 @@ public class AgendamentoTests
         Assert.Contains("Agendado", excecao.Message);
     }
 
+    // A frase chega à tela como está. Nela vai o rótulo do status, nunca o nome do enum: o nome é
+    // o valor do banco e do contrato da API, e "EmAndamento" no aviso é código vazando.
     [Fact]
     public void Iniciar_recusa_quem_ja_comecou()
     {
         var agendamento = AgendamentoValido();
         agendamento.Iniciar();
 
-        Assert.Throws<DomainException>(() => agendamento.Iniciar());
+        var excecao = Assert.Throws<DomainException>(() => agendamento.Iniciar());
+
+        Assert.Contains("\"Em andamento\"", excecao.Message);
+        Assert.DoesNotContain("EmAndamento", excecao.Message);
     }
 
     [Fact]
@@ -160,7 +165,7 @@ public class AgendamentoTests
 
         var excecao = Assert.Throws<DomainException>(() => agendamento.Cancelar(Agora));
 
-        Assert.Contains("EmAndamento", excecao.Message);
+        Assert.Contains("\"Em andamento\"", excecao.Message);
     }
 
     [Fact]
