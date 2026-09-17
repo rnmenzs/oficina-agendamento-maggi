@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Form, useNavigate, useSearchParams, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import { AppointmentSlots } from "~/components/appointment/AppointmentSlots";
@@ -8,7 +8,6 @@ import { StateError } from "~/components/common/state/StateError";
 import { FormDate } from "~/components/common/forms/FormDate/FormDate";
 import { FormSearch } from "~/components/common/forms/FormSearch/FormSearch";
 import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
-import { Notification } from "~/components/common/notification/Notification";
 import { PageBreadcrumb } from "~/components/common/page/PageBreadcrumb";
 import { PageHeader } from "~/components/common/page/PageHeader";
 import { useNotification } from "~/hooks/useNotification";
@@ -121,8 +120,6 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
     const { notify } = useNotification();
     const navigate = useNavigate();
 
-    // O aviso da recusa some quando a pessoa fecha; sem isto o × da caixa não faria nada.
-    const [noticeOpen, setNoticeOpen] = useState(true);
     const vehicleId = search.get("veiculo") ?? "";
     const time = search.get("hora") ?? "";
     const chosen = search.get("servico");
@@ -142,10 +139,12 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
     // Criado: avisa e leva para a ficha. O aviso vive num contexto acima da rota, então ele
     // sobrevive à troca de tela — é por isso que dá para avisar antes de navegar.
     useEffect(() => {
-        setNoticeOpen(true);
-    }, [actionData]);
+        // Recusado: o aviso conta o porquê e a tela fica como está, com as escolhas preservadas.
+        if (actionData?.error) {
+            notify(actionData.error, "error");
+            return;
+        }
 
-    useEffect(() => {
         if (!actionData?.created) return;
 
         // O que foi salvo vem do que a API devolveu, e não do que está na URL agora: mexer nos
@@ -238,12 +237,6 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
                                 />
                             )}
                     </fieldset>
-
-                    {actionData?.error && noticeOpen && (
-                        <Notification tone="error" onClose={() => setNoticeOpen(false)}>
-                            {actionData.error}
-                        </Notification>
-                    )}
 
                     <input type="hidden" name="hora" value={time} />
 
