@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Oficina.Api.Middleware;
 using Oficina.BLL.Agendamentos;
 using Oficina.BLL.Clientes;
@@ -66,14 +67,30 @@ app.UseSwaggerUI();
 
 app.UseCors(FrontendCorsPolicy);
 
-// Redirect para HTTPS só fora de desenvolvimento: local a API roda em HTTP
-// e um redirect quebraria o preflight de CORS vindo do frontend.
-if (!app.Environment.IsDevelopment())
+// Redirect para HTTPS só fora de desenvolvimento e só quando há uma porta HTTPS para onde
+// redirecionar: local a API roda em HTTP e um redirect quebraria o preflight de CORS; no
+// container ela também só escuta HTTP, e o middleware sem porta avisaria a cada subida.
+var httpsPort = Environment.GetEnvironmentVariable("ASPNETCORE_HTTPS_PORTS")
+    ?? Environment.GetEnvironmentVariable("HTTPS_PORT");
+
+if (!app.Environment.IsDevelopment() && httpsPort is not null)
 {
     app.UseHttpsRedirection();
 }
 
 app.MapControllers();
+
+// Onde a API está, na primeira linha do log dela: dentro de um container (a imagem oficial do .NET
+// define DOTNET_RUNNING_IN_CONTAINER) ou nesta máquina — e para qual host de banco ela aponta.
+// É o que distingue, de fora, um `docker compose up` de um `dotnet run`, sem adivinhar por "/app".
+var dentroDeContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+var hostDoBanco = Regex.Match(connectionString, @"Host=([^;]+)", RegexOptions.IgnoreCase).Groups[1].Value;
+
+app.Logger.LogInformation(
+    "Oficina API rodando {Onde}, banco em {Host}",
+    dentroDeContainer ? "dentro de um container Docker" : "nesta máquina (fora de container)",
+    hostDoBanco
+);
 
 app.Run();
 
