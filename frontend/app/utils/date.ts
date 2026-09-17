@@ -74,7 +74,11 @@ export function today(): Day {
 
 /** Dia que o resto do código pode usar sem conferir: veio da URL, que qualquer um edita. */
 export function isDay(value: string | null): value is Day {
-    return Boolean(value) && /^\d{4}-\d{2}-\d{2}$/.test(value!) && !Number.isNaN(fromDay(value!).getTime());
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+    // O Date rola o mês sozinho: "2026-02-31" vira 2 de março e passaria por válido. A ida e volta
+    // pega isso — se o dia existisse, ele voltaria escrito igual.
+    return toDay(fromDay(value)) === value;
 }
 
 export function formatDay(day: Day): string {

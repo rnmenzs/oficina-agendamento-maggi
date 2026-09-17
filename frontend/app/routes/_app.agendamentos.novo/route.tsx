@@ -20,7 +20,7 @@ import type { ServiceType } from "~/types/TypeAppointment";
 import { dayOf, formatDayLong, formatTime, instantOf, isDay, today } from "~/utils/date";
 import { formatPhone } from "~/utils/phone";
 import { formatPlate } from "~/utils/plate";
-import { SERVICE_LABEL, SERVICE_MINUTES, SERVICE_TYPES } from "~/utils/service";
+import { isServiceType, SERVICE_LABEL, SERVICE_MINUTES, SERVICE_TYPES } from "~/utils/service";
 import { isOpen, nextOpenDay, slotsOfDay } from "~/utils/schedule";
 import type { Route } from "./+types/route";
 
@@ -90,18 +90,20 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
 
     const vehicleId = String(form.get("veiculoId") ?? "");
     const time = String(form.get("hora") ?? "");
+    const service = String(form.get("tipoServico") ?? "");
+    const day = String(form.get("dia") ?? "");
 
-    // O botão fica desabilitado sem os dois, mas envio é dado de fora: sem esta guarda, hora vazia
-    // vira data inválida e a pessoa recebe "não foi possível agendar" em vez do que falta.
-    if (!vehicleId || !time) {
-        return { created: null, error: "Escolha o veículo e o horário antes de agendar." };
+    // Os campos vêm de fora, e o botão desabilitado não é guarda de nada. Sem isto, hora vazia vira
+    // data inválida e serviço adulterado vira duração indefinida — os dois com mensagem errada.
+    if (!vehicleId || !time || !isDay(day) || !isServiceType(service)) {
+        return { created: null, error: "Confira o veículo, o serviço e o horário antes de agendar." };
     }
 
     try {
         const created = await create({
             veiculoId: vehicleId,
-            tipoServico: String(form.get("tipoServico") ?? "") as ServiceType,
-            inicio: instantOf(String(form.get("dia") ?? ""), time)
+            tipoServico: service,
+            inicio: instantOf(day, time)
         });
 
         return { created, error: null };
@@ -123,7 +125,8 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
     const [noticeOpen, setNoticeOpen] = useState(true);
     const vehicleId = search.get("veiculo") ?? "";
     const time = search.get("hora") ?? "";
-    const service = (search.get("servico") ?? "TrocaOleo") as ServiceType;
+    const chosen = search.get("servico");
+    const service = isServiceType(chosen) ? chosen : "TrocaOleo";
     const slots = slotsOfDay(day, service, vehicleId, appointments);
 
     function change(fields: Record<string, string>) {
