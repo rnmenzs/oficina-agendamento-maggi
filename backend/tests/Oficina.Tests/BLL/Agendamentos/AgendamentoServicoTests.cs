@@ -99,6 +99,49 @@ public class AgendamentoServicoTests
         Assert.Contains("3 serviços", excecao.Message);
     }
 
+    // A regra é "três ao mesmo tempo", e três serviços em sequência nunca estão juntos: das 09:00
+    // às 10:30 há no máximo um de cada vez, então o diagnóstico de 90 minutos cabe. Contar quem
+    // cruza a janela, em vez do pico dentro dela, recusava este caso.
+    [Fact]
+    public async Task CriarAsync_aceita_servico_longo_sobre_tres_curtos_em_sequencia()
+    {
+        var (servico, veiculos, _) = Montar();
+
+        foreach (var (veiculo, minutos) in new[] { (veiculos[0], 0), (veiculos[1], 30), (veiculos[2], 60) })
+        {
+            await servico.CriarAsync(
+                new CriarAgendamentoRequest(veiculo.Id, NoveDaManha.AddMinutes(minutos), "TrocaOleo"),
+                CancellationToken.None
+            );
+        }
+
+        var longo = await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[3].Id, NoveDaManha, "Diagnostico"),
+            CancellationToken.None
+        );
+
+        Assert.Equal("Agendado", longo.Status);
+        Assert.Equal(NoveDaManha.AddMinutes(90), longo.Fim);
+    }
+
+    // O contrário do teste acima: aqui os três acontecem de verdade ao mesmo tempo, e o quarto
+    // não cabe em nenhum instante da janela.
+    [Fact]
+    public async Task CriarAsync_recusa_servico_longo_quando_o_pico_dentro_da_janela_ja_e_tres()
+    {
+        var (servico, veiculos, _) = Montar();
+        await CriarTres(servico, veiculos);
+
+        var excecao = await Assert.ThrowsAsync<ConflitoException>(
+            () => servico.CriarAsync(
+                new CriarAgendamentoRequest(veiculos[3].Id, NoveDaManha, "Diagnostico"),
+                CancellationToken.None
+            )
+        );
+
+        Assert.Contains("3 serviços", excecao.Message);
+    }
+
     [Fact]
     public async Task CriarAsync_libera_a_vaga_quando_um_dos_tres_e_cancelado()
     {
@@ -643,13 +686,21 @@ public class AgendamentoServicoTests
             ));
         }
 
-        public Task<int> ContarAtivosNoPeriodoAsync(
+        // Mesma conta do SQL: o pico só muda quando alguém começa, então basta olhar o início da
+        // janela e o início de cada agendamento que cai dentro dela.
+        public Task<int> PicoDeSimultaneosAsync(
             DateTimeOffset inicio,
             DateTimeOffset fim,
             CancellationToken cancellationToken
         )
         {
-            return Task.FromResult(Agendamentos.Count(a => Ativo(a) && Cruza(a, inicio, fim)));
+            var ativos = Agendamentos.Where(a => Ativo(a) && Cruza(a, inicio, fim)).ToList();
+
+            var marcos = new List<DateTimeOffset> { inicio };
+            marcos.AddRange(ativos.Select(a => a.Inicio).Where(i => i > inicio && i < fim));
+
+            return Task.FromResult(marcos.Max(marco =>
+                ativos.Count(a => a.Inicio <= marco && a.Fim > marco)));
         }
 
         public Task<Pagina<AgendamentoNaAgenda>> ListarAsync(

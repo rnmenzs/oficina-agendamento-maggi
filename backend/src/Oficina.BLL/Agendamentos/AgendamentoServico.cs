@@ -196,7 +196,7 @@ public sealed class AgendamentoServico
         CancellationToken cancellationToken
     )
     {
-        var ocupados = await _agendamentos.ContarAtivosNoPeriodoAsync(
+        var ocupados = await _agendamentos.PicoDeSimultaneosAsync(
             agendamento.Inicio,
             agendamento.Fim,
             cancellationToken
