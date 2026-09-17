@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AppointmentResponse, AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
 import { instantOf } from "./date";
-import { AT_THE_SAME_TIME, closingOf, isOpen, minutesOf, slotsOfDay, type Slot } from "./schedule";
+import { AT_THE_SAME_TIME, closingOf, isOpen, minutesOf, nextOpenDay, slotsOfDay, type Slot } from "./schedule";
 import { SERVICE_MINUTES } from "./service";
 
 // Semana de 14/09/2026: segunda a sábado, com o "agora" antes dela para nenhuma faixa ter passado.
@@ -169,5 +169,35 @@ describe("slotsOfDay", () => {
 
         expect(at(later, "09:00").reason).toBe("veículo ocupado");
         expect(at(now, "09:00").reason).toBe("já passou");
+    });
+
+    it("lê o horário dos agendamentos no fuso da oficina, não no de quem abre a tela", () => {
+        // 12:00 UTC é 09:00 na oficina, seja qual for o fuso do navegador.
+        const appointment = { ...booked("09:00", "TrocaOleo", CAR), inicio: "2026-09-16T12:00:00+00:00", fim: "2026-09-16T12:30:00+00:00" };
+
+        expect(at(slotsOfDay(WEDNESDAY, "TrocaOleo", CAR, [appointment], BEFORE), "09:00").reason).toBe("veículo ocupado");
+    });
+});
+
+describe("nextOpenDay", () => {
+    // Todos os instantes abaixo em UTC; a oficina está três horas atrás.
+    it("é hoje enquanto ainda cabe uma troca de óleo antes de fechar", () => {
+        expect(nextOpenDay(new Date("2026-09-15T13:00:00Z"))).toBe("2026-09-15");
+        expect(nextOpenDay(new Date("2026-09-15T20:30:00Z"))).toBe("2026-09-15");
+    });
+
+    it("pula para amanhã quando não cabe mais nada hoje", () => {
+        expect(nextOpenDay(new Date("2026-09-15T20:31:00Z"))).toBe("2026-09-16");
+        expect(nextOpenDay(new Date("2026-09-16T01:00:00Z"))).toBe("2026-09-16");
+    });
+
+    it("no sábado depois do meio-dia, e no domingo, vai para segunda", () => {
+        expect(nextOpenDay(new Date("2026-09-19T14:30:00Z"))).toBe("2026-09-19");
+        expect(nextOpenDay(new Date("2026-09-19T14:31:00Z"))).toBe("2026-09-21");
+        expect(nextOpenDay(new Date("2026-09-20T12:00:00Z"))).toBe("2026-09-21");
+    });
+
+    it("sexta à noite cai no sábado, que abre de manhã", () => {
+        expect(nextOpenDay(new Date("2026-09-18T22:00:00Z"))).toBe("2026-09-19");
     });
 });
