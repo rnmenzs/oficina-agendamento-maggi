@@ -25,12 +25,19 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
         Cliente = CreateClient();
     }
 
+    // O banco é apagado mesmo que o host falhe ao fechar: sem o finally, um erro aí deixaria um
+    // oficina_teste_* órfão no servidor a cada execução.
     public new async Task DisposeAsync()
     {
-        Cliente.Dispose();
-        await base.DisposeAsync();
-
-        if (_banco is not null) await _banco.DisposeAsync();
+        try
+        {
+            Cliente.Dispose();
+            await base.DisposeAsync();
+        }
+        finally
+        {
+            if (_banco is not null) await _banco.DisposeAsync();
+        }
     }
 
     // ── Dados de cada teste ────────────────────────────────────────────────

@@ -45,11 +45,16 @@ public sealed class BancoDeTeste : IAsyncDisposable
             );
         }
 
-        // Só a estrutura: tabelas, restrições e índices. Sem seed, cada teste cria o que precisa.
-        foreach (var script in new[] { "001_create_tables.sql", "002_constraints_and_indexes.sql" })
+        // Só a estrutura, lida da pasta, em ordem: uma migration nova entra aqui sozinha. Os seeds
+        // ficam de fora pelo nome — a convenção da pasta é que dado de teste tem "seed" no nome
+        // (003_seed, 004_seed_volume) — porque cada teste cria o que precisa.
+        var estrutura = Directory.GetFiles(Path.Combine(RaizDoRepositorio, "scripts"), "*.sql")
+            .Where(caminho => !Path.GetFileName(caminho).Contains("seed", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(caminho => Path.GetFileName(caminho), StringComparer.Ordinal);
+
+        foreach (var script in estrutura)
         {
-            var sql = await File.ReadAllTextAsync(Path.Combine(RaizDoRepositorio, "scripts", script));
-            await banco.ExecutarAsync(sql);
+            await banco.ExecutarAsync(await File.ReadAllTextAsync(script));
         }
 
         return banco;
