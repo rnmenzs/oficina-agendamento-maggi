@@ -318,7 +318,7 @@ public class AgendamentoServicoTests
             )
         );
 
-        Assert.Contains("Agendado para Concluido", excecao.Message);
+        Assert.Contains("\"Agendado\" para \"Concluído\"", excecao.Message);
     }
 
     [Fact]

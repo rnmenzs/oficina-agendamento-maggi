@@ -1,6 +1,6 @@
-import { Suspense, useState } from "react";
+import { Suspense, useEffect } from "react";
 import {
-    Await, isRouteErrorResponse, useLocation, useRevalidator, useRouteError, useSearchParams
+    Await, isRouteErrorResponse, useFetcher, useLocation, useRouteError, useSearchParams
 } from "react-router";
 
 import { ClientAppointmentTable } from "~/components/client/ClientAppointmentTable";
@@ -24,11 +24,13 @@ import { ApiError } from "~/services/ServiceHttp";
 import { create as createVehicle, listOfClient as vehiclesOf } from "~/services/ServiceVehicle";
 import type { AppointmentResponse } from "~/types/TypeAppointment";
 import type { ClientResponse } from "~/types/TypeClient";
+import type { SubmitResult } from "~/types/TypeError";
 import type { CreateVehicleRequest, VehicleResponse } from "~/types/TypeVehicle";
 import { dayOf, formatDay } from "~/utils/date";
-import { fieldErrorOf } from "~/utils/fieldError";
+import { fieldOf } from "~/utils/fieldError";
 import { formatPhone } from "~/utils/phone";
 import { deferred } from "~/utils/promise";
+import { unlessRefused } from "~/utils/revalidate";
 import type { Route } from "./+types/route";
 
 const PAGE_SIZE = 10;
@@ -53,6 +55,22 @@ export async function clientLoader({ params, request }: Route.ClientLoaderArgs) 
 
     return { client, vehicles, appointments, page };
 }
+
+// O veículo entra por aqui: a rota fala com o service, e a ficha é relida sozinha depois de
+// gravar — é o que faz o carro novo aparecer na frota sem ninguém pedir.
+export async function clientAction({ params, request }: Route.ClientActionArgs): Promise<SubmitResult<VehicleResponse>> {
+    const vehicle: CreateVehicleRequest = await request.json();
+
+    try {
+        return { saved: await createVehicle(params.id, vehicle) };
+    } catch (error) {
+        const message = error instanceof ApiError ? error.message : "Não foi possível cadastrar o veículo.";
+
+        return { failure: { message, field: fieldOf(message, VEHICLE_FIELDS) ?? undefined } };
+    }
+}
+
+export const shouldRevalidate = unlessRefused;
 
 export function ErrorBoundary() {
     const error = useRouteError();
@@ -80,7 +98,6 @@ export default function Client({ loaderData }: Route.ComponentProps) {
     const location = useLocation();
     const { open } = useModal();
     const { notify } = useNotification();
-    const revalidator = useRevalidator();
 
     const linkTo = (appointment: AppointmentResponse) => `/agendamentos/${appointment.id}`;
 
@@ -89,17 +106,15 @@ export default function Client({ loaderData }: Route.ComponentProps) {
     const fleet = useResolved(vehicles);
     const known = useResolved(appointments);
 
-    // Cadastrar veículo não muda de tela: o que mudou está logo abaixo, e é só relê-lo.
+    // Cadastrar veículo não muda de tela: o que mudou está logo abaixo, e a rota é relida sozinha
+    // depois do clientAction gravar.
     async function addVehicle() {
         const created = await open<VehicleResponse>(
             close => <VehicleCreation client={client} onDone={close} />,
             { width: "medium" }
         );
 
-        if (!created) return;
-
-        notify(`${created.modelo} cadastrado para ${client.nome}.`);
-        revalidator.revalidate();
+        if (created) notify(`${created.modelo} cadastrado para ${client.nome}.`);
     }
 
     // A página vive na URL, como na agenda: recarregar, voltar e compartilhar o endereço caem no
@@ -215,40 +230,33 @@ export default function Client({ loaderData }: Route.ComponentProps) {
 
 // O envio vive aqui dentro para a janela poder mostrar a recusa da API sem fechar: quem fecha é a
 // resposta boa, e é ela que a promessa devolve.
+// A `action` é explícita pelo mesmo motivo da lista de clientes: a janela vive na raiz, fora da
+// árvore desta rota, e sem ela o fetcher submeteria para "/".
 function VehicleCreation({
     client, onDone
 }: { client: ClientResponse; onDone: (vehicle?: VehicleResponse) => void }) {
+    const fetcher = useFetcher<typeof clientAction>();
     const { notify } = useNotification();
-    const [sending, setSending] = useState(false);
-    const [errors, setErrors] = useState<VehicleFieldErrors>({});
+    const result = fetcher.data;
+    const failure = result && "failure" in result ? result.failure : null;
+    const errors: VehicleFieldErrors = failure?.field ? { [failure.field]: failure.message } : {};
 
-    async function submit(vehicle: CreateVehicleRequest) {
-        setSending(true);
-        setErrors({});
+    useEffect(() => {
+        if (!result) return;
 
-        try {
-            onDone(await createVehicle(client.id, vehicle));
-        } catch (failure) {
-            setSending(false);
-
-            const message = failure instanceof ApiError
-                ? failure.message
-                : "Não foi possível cadastrar o veículo.";
-
-            // Recusa de campo volta para o campo; o que não é de campo nenhum vira aviso.
-            const field = fieldErrorOf(message, VEHICLE_FIELDS);
-
-            if (field) setErrors(field); else notify(message, "error");
-        }
-    }
+        if ("saved" in result) onDone(result.saved);
+        else if (!result.failure.field) notify(result.failure.message, "error");
+    }, [result, onDone, notify]);
 
     return (
         <VehicleForm
             clientName={client.nome}
             errors={errors}
-            sending={sending}
+            sending={fetcher.state !== "idle"}
             onCancel={() => onDone()}
-            onSubmit={submit}
+            onSubmit={vehicle => fetcher.submit(vehicle, {
+                method: "post", action: `/clientes/${client.id}`, encType: "application/json"
+            })}
         />
     );
 }

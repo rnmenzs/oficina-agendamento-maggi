@@ -16,14 +16,16 @@ import { Skeleton } from "~/components/common/skeleton/Skeleton";
 import { StateEmpty } from "~/components/common/state/StateEmpty";
 import { useStatusActions } from "~/hooks/useStatusActions";
 import { ApiError } from "~/services/ServiceHttp";
-import { get } from "~/services/ServiceAppointment";
+import { changeStatus, get } from "~/services/ServiceAppointment";
 import { dayOf, formatDay, formatDayLong, formatTime } from "~/utils/date";
 import { formatPhone } from "~/utils/phone";
 import { deferred } from "~/utils/promise";
 import { SERVICE_LABEL } from "~/utils/service";
 import type {
-    AppointmentDetailResponse, AppointmentResponse, AppointmentStatus
+    AppointmentDetailResponse, AppointmentResponse, AppointmentStatus, ChangeStatusRequest
 } from "~/types/TypeAppointment";
+import type { SubmitResult } from "~/types/TypeError";
+import { isStatus } from "~/utils/status";
 import type { Route } from "./+types/route";
 
 // O título da aba é genérico: o meta roda antes de o dado existir, e o agendamento vai como
@@ -34,6 +36,25 @@ export function meta() {
 
 export function clientLoader({ params }: Route.ClientLoaderArgs) {
     return { appointment: deferred(get(params.id)) };
+}
+
+// A troca de status entra por aqui, venha da ficha ou de uma linha da agenda: o recurso é o
+// agendamento, e a agenda submete para esta rota. Quem chamou é relido sozinho depois — também
+// na recusa, de propósito: "mudou enquanto era processado" e "não é possível mudar de X para Y"
+// significam que a tela está velha, e a releitura é o que a atualiza.
+// Quais transições valem é regra do domínio — a tela oferece, a API decide, e a frase dela volta.
+export async function clientAction({ params, request }: Route.ClientActionArgs): Promise<SubmitResult<AppointmentResponse>> {
+    const { status } = await request.json() as ChangeStatusRequest;
+
+    if (!isStatus(status)) return { failure: { message: "Status desconhecido." } };
+
+    try {
+        return { saved: await changeStatus(params.id, status) };
+    } catch (error) {
+        return {
+            failure: { message: error instanceof ApiError ? error.message : "Não foi possível mudar o status." }
+        };
+    }
 }
 
 // Um id que não existe é 404, não falha: a mensagem diz o que aconteceu com a página, e não que a
