@@ -52,9 +52,19 @@ public sealed class BancoDeTeste : IAsyncDisposable
             .Where(caminho => !Path.GetFileName(caminho).Contains("seed", StringComparison.OrdinalIgnoreCase))
             .OrderBy(caminho => Path.GetFileName(caminho), StringComparer.Ordinal);
 
-        foreach (var script in estrutura)
+        // Um script que falha depois do CREATE DATABASE deixaria o banco para trás: ninguém teria a
+        // instância para apagá-lo. Apaga aqui mesmo e deixa o erro subir.
+        try
         {
-            await banco.ExecutarAsync(await File.ReadAllTextAsync(script));
+            foreach (var script in estrutura)
+            {
+                await banco.ExecutarAsync(await File.ReadAllTextAsync(script));
+            }
+        }
+        catch
+        {
+            await banco.DisposeAsync();
+            throw;
         }
 
         return banco;

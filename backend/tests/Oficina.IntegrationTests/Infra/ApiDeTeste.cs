@@ -10,7 +10,10 @@ namespace Oficina.IntegrationTests.Infra;
 // dividem o mesmo banco e por isso rodam em sequência, cada um no seu dia, sem se ver.
 public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private const string VariavelDaConexao = "CONNECTION_STRING";
+
     private BancoDeTeste? _banco;
+    private string? _conexaoOriginal;
 
     public HttpClient Cliente { get; private set; } = null!;
 
@@ -19,14 +22,27 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
         _banco = await BancoDeTeste.CriarAsync();
 
         // O Program.cs lê CONNECTION_STRING do ambiente antes do .env, então é aqui que a API é
-        // apontada para o banco de teste — antes de o host existir.
-        Environment.SetEnvironmentVariable("CONNECTION_STRING", _banco.ConnectionString);
+        // apontada para o banco de teste — antes de o host existir. O valor que estava lá volta no
+        // fim: o runner da IDE reaproveita o processo entre execuções, e a próxima herdaria uma
+        // string apontando para um banco já apagado.
+        // Se o host não subir, o xUnit não chama o DisposeAsync — o banco é apagado aqui mesmo.
+        try
+        {
+            _conexaoOriginal = Environment.GetEnvironmentVariable(VariavelDaConexao);
+            Environment.SetEnvironmentVariable(VariavelDaConexao, _banco.ConnectionString);
 
-        Cliente = CreateClient();
+            Cliente = CreateClient();
+        }
+        catch
+        {
+            Environment.SetEnvironmentVariable(VariavelDaConexao, _conexaoOriginal);
+            await _banco.DisposeAsync();
+            throw;
+        }
     }
 
-    // O banco é apagado mesmo que o host falhe ao fechar: sem o finally, um erro aí deixaria um
-    // oficina_teste_* órfão no servidor a cada execução.
+    // O banco é apagado e a variável restaurada mesmo que o host falhe ao fechar: sem o finally,
+    // um erro aí deixaria um oficina_teste_* órfão no servidor a cada execução.
     public new async Task DisposeAsync()
     {
         try
@@ -36,6 +52,7 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
         }
         finally
         {
+            Environment.SetEnvironmentVariable(VariavelDaConexao, _conexaoOriginal);
             if (_banco is not null) await _banco.DisposeAsync();
         }
     }
