@@ -38,14 +38,14 @@ export function ClientForm({ errors, sending, onSubmit, onCancel }: ClientFormPr
     const [phone, setPhone] = useState("");
     const [email, setEmail] = useState("");
 
-    const ready = name.trim().length > 1 && normalizePhone(phone).length >= 10 && email.includes("@");
-
     // Um <form> de verdade para o Enter valer em qualquer campo: são três campos, e quem acaba de
     // digitar o e-mail não deveria ter que ir até o botão.
+    // O botão fica sempre ativo: apagado, ele esconde qual campo está impedindo o cadastro. Campo
+    // vazio o navegador segura; telefone curto ou e-mail malfeito voltam da API no campo certo.
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
-        if (!ready || sending) return;
+        if (sending) return;
 
         onSubmit({
             nome: name.trim(),
@@ -90,7 +90,7 @@ export function ClientForm({ errors, sending, onSubmit, onCancel }: ClientFormPr
 
                 <ModalFooter>
                     <Button onClick={onCancel}>Voltar</Button>
-                    <Button type="submit" variant="primary" disabled={!ready || sending}>
+                    <Button type="submit" variant="primary" disabled={sending}>
                         {sending ? "Cadastrando…" : "Cadastrar cliente"}
                     </Button>
                 </ModalFooter>
