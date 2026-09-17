@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { BadgePlate } from "../common/badge/BadgePlate";
 import { BadgeStatus } from "../common/badge/BadgeStatus";
 import { ButtonIcon } from "../common/button/ButtonIcon";
+import { SkeletonRows } from "../common/skeleton/SkeletonRows";
 import { Table, type TableColumn } from "../common/table/Table";
 import { TableCell } from "../common/table/TableCell";
 import { TableRow } from "../common/table/TableRow";
@@ -80,6 +81,8 @@ function AppointmentActions({ appointment, linkTo, busy, onAction }: Appointment
 
 type AppointmentTableProps = {
     appointments: readonly AppointmentResponse[];
+    /** As linhas ainda não chegaram: o cabeçalho fica e o corpo vira esqueleto. */
+    loading?: boolean;
     /** Enquanto uma troca de status está em curso, as ações da lista inteira esperam. */
     busy?: boolean;
     /** Para onde a seta de cada linha leva. Quem conhece as rotas do sistema é a tela. */
@@ -87,10 +90,12 @@ type AppointmentTableProps = {
     onAction?: (appointment: AppointmentResponse, to: AppointmentStatus) => void;
 };
 
-export function AppointmentTable({ appointments, linkTo, busy, onAction }: AppointmentTableProps) {
+export function AppointmentTable({
+    appointments, loading = false, linkTo, busy, onAction
+}: AppointmentTableProps) {
     return (
-        <Table columns={COLUMNS}>
-            {appointments.map(appointment => (
+        <Table columns={COLUMNS} busy={loading}>
+            {loading ? <SkeletonRows columns={COLUMNS.length} /> : appointments.map(appointment => (
                 <TableRow key={appointment.id}>
                     <TableCell>
                         <span className="font-mono text-xs whitespace-nowrap text-muted">

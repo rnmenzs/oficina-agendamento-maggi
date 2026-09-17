@@ -34,6 +34,19 @@
     --radius-card: 8px;
 
     --shadow-card: 0 1px 2px rgb(20 26 34 / 0.06), 0 1px 3px rgb(20 26 34 / 0.04);
+
+    --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+    --animate-slide: slide 1s ease-in-out infinite;
+
+    @keyframes shimmer {
+        from { background-position: 200% 0; }
+        to { background-position: -200% 0; }
+    }
+
+    @keyframes slide {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(300%); }
+    }
 }
 
 @layer base {
@@ -73,4 +86,15 @@
    pintado por baixo deixa buraco quando a última fileira não fecha. */
 @utility cell-line {
     box-shadow: 0 0 0 1px var(--color-line);
+}
+
+@utility skeleton {
+    background: linear-gradient(90deg, var(--color-line) 25%, var(--color-surface-alt) 50%, var(--color-line) 75%);
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+        background: var(--color-line);
+    }
 }

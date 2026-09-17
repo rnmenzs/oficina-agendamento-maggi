@@ -1,4 +1,5 @@
 import { BadgePlate } from "../common/badge/BadgePlate";
+import { SkeletonRows } from "../common/skeleton/SkeletonRows";
 import { Table, type TableColumn } from "../common/table/Table";
 import { TableCell } from "../common/table/TableCell";
 import { TableRow } from "../common/table/TableRow";
@@ -12,10 +13,16 @@ const COLUMNS: readonly TableColumn[] = [
     { key: "cadastro", label: "Cadastrado em" }
 ];
 
-export function ClientVehicleTable({ vehicles }: { vehicles: readonly VehicleResponse[] }) {
+type ClientVehicleTableProps = {
+    vehicles: readonly VehicleResponse[];
+    /** As linhas ainda não chegaram: o cabeçalho fica e o corpo vira esqueleto. */
+    loading?: boolean;
+};
+
+export function ClientVehicleTable({ vehicles, loading = false }: ClientVehicleTableProps) {
     return (
-        <Table columns={COLUMNS}>
-            {vehicles.map(vehicle => (
+        <Table columns={COLUMNS} busy={loading}>
+            {loading ? <SkeletonRows columns={COLUMNS.length} rows={2} /> : vehicles.map(vehicle => (
                 <TableRow key={vehicle.id}>
                     <TableCell><BadgePlate plate={vehicle.placa} /></TableCell>
 
