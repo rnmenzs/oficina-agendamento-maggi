@@ -120,19 +120,25 @@ WEB_PID=""
 # de fora mandou um SIGTERM (outro processo, um kill)? E sai no fim: sem o exit, depois de um sinal
 # o bash voltaria ao laço, que acharia a API e o frontend mortos — mortos por este mesmo script —
 # e anunciaria "caiu" com tudo já no chão.
-encerrar() {  # motivo
+# O código de saída não é um zero fixo: uma falha do script — imagem que não construiu, frontend
+# que não respondeu — chega aqui pelo trap EXIT com o código dela em $?, e sai com ele, para quem
+# automatiza não ler sucesso onde não houve. Os sinais passam o código explícito (130 para Ctrl+C,
+# 143 para SIGTERM, a convenção), porque no trap de sinal o $? é o do último comando concluído
+# antes do sinal, não o do read interrompido.
+encerrar() {  # motivo, código
+    local status=${2:-$?}
     trap - INT TERM EXIT
     echo
-    azul "Encerrando (${1:-fim do script})…"
+    azul "Encerrando (${1:-$([ "$status" -eq 0 ] && echo "fim do script" || echo "falha, código $status")})…"
     matar "$WEB_PID"
     parar_api
     docker compose down >/dev/null 2>&1 || true
     echo "Tudo fora do ar. O volume do banco ficou; os dados voltam na próxima subida."
-    exit 0
+    exit "$status"
 }
 
-trap 'encerrar "Ctrl+C"' INT
-trap 'encerrar "SIGTERM recebido de outro processo"' TERM
+trap 'encerrar "Ctrl+C" 130' INT
+trap 'encerrar "SIGTERM recebido de outro processo" 143' TERM
 trap 'encerrar' EXIT
 
 # ── Banco ──────────────────────────────────────────────────────────────

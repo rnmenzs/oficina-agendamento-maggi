@@ -20,9 +20,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
 # O Npgsql procura a biblioteca de Kerberos ao iniciar e registra um erro se não a encontra,
-# mesmo sem usar Kerberos. A imagem enxuta não a traz.
+# mesmo sem usar Kerberos; a imagem enxuta não a traz. O tzdata a base Debian já tem — vai na
+# mesma linha para continuar tendo, mesmo se a base mudar.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app .
