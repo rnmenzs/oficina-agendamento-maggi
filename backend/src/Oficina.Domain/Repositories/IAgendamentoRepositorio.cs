@@ -6,7 +6,15 @@ namespace Oficina.Domain.Repositories;
 public interface IAgendamentoRepositorio
 {
     // Devolve já com os dados de exibição para a resposta da criação não exigir uma segunda consulta.
-    Task<AgendamentoNaAgenda> AdicionarAsync(Agendamento agendamento, CancellationToken cancellationToken);
+    // Leva o máximo de serviços simultâneos porque é aqui que a regra de capacidade ganha garantia:
+    // a BLL confere antes, mas entre conferir e gravar cabe outra requisição, e não existe
+    // constraint declarativa para "no máximo três ao mesmo tempo". A gravação mede o pico de novo,
+    // sob um lock que serializa quem grava, e recusa com ConflitoException se já não couber.
+    Task<AgendamentoNaAgenda> AdicionarAsync(
+        Agendamento agendamento,
+        int maximoDeSimultaneos,
+        CancellationToken cancellationToken
+    );
 
     // Não encontrar é resultado possível da consulta, não caso excepcional: por isso não lança.
     // Traz o detalhe completo, e quem só precisa da entidade usa a propriedade dela.

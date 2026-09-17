@@ -55,8 +55,42 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         _fonteDeDados = fonteDeDados;
     }
 
+    // O pico só pode mudar quando alguém começa: entre dois inícios, o número de serviços em
+    // curso não sobe. Então basta medir no começo da janela e no começo de cada agendamento
+    // que cai dentro dela — é a varredura clássica, e evita varrer minuto a minuto.
+    //
+    // Contar quem cruza a janela, que é o que esta consulta fazia antes, recusava caso
+    // legítimo: três serviços de trinta minutos em sequência cruzam a janela de um de noventa
+    // sem nunca estarem juntos.
+    private const string PicoDeSimultaneos = $"""
+        WITH ativos AS (
+            SELECT a.inicio, a.fim
+            FROM agendamentos a
+            WHERE {ApenasAtivos}
+              AND {CruzaOPeriodo}
+        ),
+        marcos AS (
+            SELECT @Inicio::timestamptz AS instante
+            UNION
+            SELECT inicio FROM ativos
+            WHERE inicio > @Inicio::timestamptz AND inicio < @Fim::timestamptz
+        )
+        SELECT coalesce(max((
+            SELECT count(*)
+            FROM ativos a
+            WHERE a.inicio <= m.instante AND a.fim > m.instante
+        )), 0)
+        FROM marcos m
+        """;
+
+    // Um lock só para a oficina inteira: a capacidade é dela, não de um horário. Com várias
+    // lojas, a chave seria por loja. É de transação (xact): solta sozinho no commit ou no rollback.
+    private const string TravarCapacidade =
+        "SELECT pg_advisory_xact_lock(hashtext('agendamentos:capacidade'))";
+
     public async Task<AgendamentoNaAgenda> AdicionarAsync(
         Agendamento agendamento,
+        int maximoDeSimultaneos,
         CancellationToken cancellationToken
     )
     {
@@ -75,6 +109,31 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
             """;
 
         await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);
+        await using var transacao = await conexao.BeginTransactionAsync(cancellationToken);
+
+        // Medir e gravar viram um passo só: quem chega enquanto outro grava espera o lock, e ao
+        // medir já enxerga o que o outro gravou. Sem isto, seis pedidos simultâneos para o mesmo
+        // horário passavam todos pela medição antes de qualquer um gravar — e os seis entravam.
+        await conexao.ExecuteAsync(new CommandDefinition(
+            TravarCapacidade,
+            transaction: transacao,
+            cancellationToken: cancellationToken
+        ));
+
+        var pico = await conexao.ExecuteScalarAsync<int>(new CommandDefinition(
+            PicoDeSimultaneos,
+            new { Inicio = agendamento.Inicio.UtcDateTime, Fim = agendamento.Fim.UtcDateTime },
+            transaction: transacao,
+            cancellationToken: cancellationToken
+        ));
+
+        // Sair sem commit desfaz a transação e solta o lock.
+        if (pico >= maximoDeSimultaneos)
+        {
+            throw new ConflitoException(
+                $"A oficina já tem {maximoDeSimultaneos} serviços nesse horário."
+            );
+        }
 
         try
         {
@@ -89,8 +148,11 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
                     TipoServico = agendamento.TipoServico.ToString(),
                     Status = agendamento.Status.ToString()
                 },
+                transaction: transacao,
                 cancellationToken: cancellationToken
             ));
+
+            await transacao.CommitAsync(cancellationToken);
 
             return MontarAgenda(linha);
         }
@@ -177,38 +239,10 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         CancellationToken cancellationToken
     )
     {
-        // O pico só pode mudar quando alguém começa: entre dois inícios, o número de serviços em
-        // curso não sobe. Então basta medir no começo da janela e no começo de cada agendamento
-        // que cai dentro dela — é a varredura clássica, e evita varrer minuto a minuto.
-        //
-        // Contar quem cruza a janela, que é o que esta consulta fazia antes, recusava caso
-        // legítimo: três serviços de trinta minutos em sequência cruzam a janela de um de noventa
-        // sem nunca estarem juntos.
-        const string sql = $"""
-            WITH ativos AS (
-                SELECT a.inicio, a.fim
-                FROM agendamentos a
-                WHERE {ApenasAtivos}
-                  AND {CruzaOPeriodo}
-            ),
-            marcos AS (
-                SELECT @Inicio::timestamptz AS instante
-                UNION
-                SELECT inicio FROM ativos
-                WHERE inicio > @Inicio::timestamptz AND inicio < @Fim::timestamptz
-            )
-            SELECT coalesce(max((
-                SELECT count(*)
-                FROM ativos a
-                WHERE a.inicio <= m.instante AND a.fim > m.instante
-            )), 0)
-            FROM marcos m
-            """;
-
         await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);
 
         return await conexao.ExecuteScalarAsync<int>(new CommandDefinition(
-            sql,
+            PicoDeSimultaneos,
             new { Inicio = inicio.UtcDateTime, Fim = fim.UtcDateTime },
             cancellationToken: cancellationToken
         ));

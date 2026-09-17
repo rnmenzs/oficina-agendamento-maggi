@@ -52,7 +52,11 @@ public sealed class AgendamentoServico
         await GarantirQueOVeiculoEstaLivre(agendamento, cancellationToken);
         await GarantirQueCabeNaCapacidade(agendamento, cancellationToken);
 
-        var salvo = await _agendamentos.AdicionarAsync(agendamento, cancellationToken);
+        var salvo = await _agendamentos.AdicionarAsync(
+            agendamento,
+            MaximoDeServicosSimultaneos,
+            cancellationToken
+        );
 
         return Mapear(salvo);
     }
@@ -196,8 +200,10 @@ public sealed class AgendamentoServico
         }
     }
 
-    // Capacidade tem a mesma corrida, e nela o banco não ajuda: não existe constraint declarativa
-    // para "no máximo três ao mesmo tempo". Resolver exigiria lock.
+    // Capacidade tem a mesma corrida, e nela não há constraint declarativa que ajude. Quem fecha
+    // a janela é a gravação: o repositório mede o pico de novo sob lock, na mesma transação do
+    // INSERT, e recusa se já não couber. A checagem aqui continua para a regra viver junto das
+    // outras e recusar antes de tentar gravar.
     //
     // O que se compara é o PICO dentro da janela, não quantos a cruzam. O novo agendamento cobre a
     // janela inteira, então ele soma 1 em todo instante dela: se o pico de agora já é três, não
