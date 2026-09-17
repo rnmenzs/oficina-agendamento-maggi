@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.BLL.Agendamentos;
 using Oficina.DTO;
@@ -5,6 +6,7 @@ using Oficina.DTO.Agendamentos;
 
 namespace Oficina.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/agendamentos")]
 public sealed class AgendamentosController : ControllerBase
