@@ -2,7 +2,10 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 
 import { Button } from "./components/common/button/Button";
 import { Card } from "./components/common/card/Card";
+import { LoadingBar } from "./components/common/loading/LoadingBar";
+import { NavBar } from "./components/common/navbar/NavBar";
 import { StateEmpty } from "./components/common/state/StateEmpty";
+import { HOME, SECTIONS } from "./routes/_app/sections";
 import { ModalProvider } from "./context/ModalContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import type { Route } from "./+types/root";
@@ -33,6 +36,19 @@ export default function App() {
                 <Outlet />
             </ModalProvider>
         </NotificationProvider>
+    );
+}
+
+// O que aparece enquanto o JS da primeira tela ainda baixa. Sem SSR o React Router não pinta
+// nada até lá, e o padrão dele é um <body> vazio. Só a raiz pode ter isto, então a casca é
+// desenhada aqui de novo. Só a casca: qual tela vem ninguém sabe ainda, e os dados dela não são
+// esperados aqui — cada tela pinta o seu título e espera só as próprias tabelas.
+export function HydrateFallback() {
+    return (
+        <>
+            <LoadingBar active />
+            <NavBar home={HOME} sections={SECTIONS} />
+        </>
     );
 }
 
