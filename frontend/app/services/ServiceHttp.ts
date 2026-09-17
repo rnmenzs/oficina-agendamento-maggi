@@ -1,4 +1,5 @@
 import type { ProblemDetails } from "~/types/TypeError";
+import { getToken, logout } from "~/utils/session";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5062/api";
 
@@ -43,17 +44,30 @@ export async function request<T>(path: string, options: Options = {}): Promise<T
         if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
     }
 
+    const headers: Record<string, string> = {};
+
+    const token = getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (options.body) headers["Content-Type"] = "application/json";
+
     let response: Response;
 
     try {
         response = await fetch(url, {
             method: options.method ?? "GET",
-            headers: options.body ? { "Content-Type": "application/json" } : undefined,
+            headers,
             body: options.body ? JSON.stringify(options.body) : undefined
         });
     } catch {
         // Rede fora, API fora, CORS recusado: nada disso tem status, e a tela precisa de uma frase.
         throw new ApiError(0, "Não foi possível falar com o servidor. Verifique se a API está no ar.");
+    }
+
+    // Token expirado ou inválido: limpa e manda para o login sem tentar ler o corpo. Sem token
+    // enviado, o 401 é do próprio login — senha errada — e segue como qualquer outra recusa.
+    if (response.status === 401 && token) {
+        logout();
+        throw new ApiError(401, "Sessão expirada.");
     }
 
     if (!response.ok) return refuse(response);
