@@ -1,11 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { closingOf, isOpen, minutesOf, slotsOfDay, type Slot } from "./schedule";
+import type { AppointmentResponse, AppointmentStatus, ServiceType } from "~/types/TypeAppointment";
+import { instantOf } from "./date";
+import { AT_THE_SAME_TIME, closingOf, isOpen, minutesOf, slotsOfDay, type Slot } from "./schedule";
+import { SERVICE_MINUTES } from "./service";
 
 // Semana de 14/09/2026: segunda a sábado, com o "agora" antes dela para nenhuma faixa ter passado.
 const WEDNESDAY = "2026-09-16";
 const SATURDAY = "2026-09-19";
 const SUNDAY = "2026-09-20";
 const BEFORE = new Date("2026-09-01T12:00:00Z");
+
+const CAR = "carro-1";
+const OTHER = "carro-2";
+
+let sequence = 0;
+
+function booked(
+    time: string,
+    service: ServiceType,
+    vehicleId = OTHER,
+    status: AppointmentStatus = "Agendado",
+    day = WEDNESDAY
+): AppointmentResponse {
+    const inicio = instantOf(day, time);
+    const fim = new Date(Date.parse(inicio) + SERVICE_MINUTES[service] * 60_000).toISOString();
+
+    return {
+        id: `agendamento-${++sequence}`, veiculoId: vehicleId, placa: "ABC1234", modelo: "Gol", ano: 2020,
+        clienteId: "cliente-1", nomeDoCliente: "Ana", inicio, fim, tipoServico: service, status,
+        criadoEm: inicio, atualizadoEm: inicio
+    };
+}
 
 const at = (slots: readonly Slot[], time: string): Slot => {
     const slot = slots.find(item => item.time === time);
@@ -69,4 +94,80 @@ describe("slotsOfDay", () => {
         expect(future.every(slot => slot.free)).toBe(true);
     });
 
+    it("o mesmo veículo não entra duas vezes no mesmo horário", () => {
+        const appointments = [booked("09:00", "Revisao", CAR)];
+
+        const sameCar = slotsOfDay(WEDNESDAY, "TrocaOleo", CAR, appointments, BEFORE);
+        const otherCar = slotsOfDay(WEDNESDAY, "TrocaOleo", OTHER, appointments, BEFORE);
+
+        expect(at(sameCar, "09:00")).toMatchObject({ free: false, reason: "veículo ocupado", taken: 1 });
+        expect(at(sameCar, "09:30")).toMatchObject({ free: false, reason: "veículo ocupado" });
+        expect(at(sameCar, "08:30")).toMatchObject({ free: true });
+        expect(at(sameCar, "10:00")).toMatchObject({ free: true });
+
+        expect(at(otherCar, "09:00")).toMatchObject({ free: true, taken: 1 });
+    });
+
+    it("um serviço mais longo do mesmo veículo bate no que já existe mesmo começando antes", () => {
+        const slots = slotsOfDay(WEDNESDAY, "Revisao", CAR, [booked("09:00", "TrocaOleo", CAR)], BEFORE);
+
+        expect(at(slots, "08:30")).toMatchObject({ free: false, reason: "veículo ocupado" });
+        expect(at(slots, "08:00")).toMatchObject({ free: true });
+    });
+
+    it("com três serviços ao mesmo tempo a oficina está cheia", () => {
+        const appointments = ["a", "b", "c"].map(vehicle => booked("09:00", "TrocaOleo", vehicle));
+
+        const slots = slotsOfDay(WEDNESDAY, "TrocaOleo", "", appointments, BEFORE);
+
+        expect(at(slots, "09:00")).toMatchObject({ free: false, reason: "oficina cheia", taken: AT_THE_SAME_TIME });
+        expect(at(slots, "09:30")).toMatchObject({ free: true, taken: 0 });
+    });
+
+    it("concluído e cancelado não ocupam vaga", () => {
+        const appointments = [
+            booked("09:00", "TrocaOleo", "a"),
+            booked("09:00", "TrocaOleo", "b", "Concluido"),
+            booked("09:00", "TrocaOleo", "c", "Cancelado"),
+            booked("09:00", "TrocaOleo", "d", "EmAndamento")
+        ];
+
+        expect(at(slotsOfDay(WEDNESDAY, "TrocaOleo", "", appointments, BEFORE), "09:00"))
+            .toMatchObject({ free: true, taken: 2 });
+    });
+
+    it("três serviços curtos em sequência não fecham a janela de um longo: o que vale é o pico", () => {
+        const appointments = [
+            booked("08:00", "TrocaOleo", "a"),
+            booked("08:30", "TrocaOleo", "b"),
+            booked("09:00", "TrocaOleo", "c")
+        ];
+
+        expect(at(slotsOfDay(WEDNESDAY, "Diagnostico", "", appointments, BEFORE), "08:00"))
+            .toMatchObject({ free: true, taken: 1 });
+    });
+
+    it("o pico conta mesmo quando acontece no meio da janela", () => {
+        // Dois diagnósticos das 8h às 9h30 e uma troca de óleo às 9h: às 9h há três ao mesmo tempo.
+        const appointments = [
+            booked("08:00", "Diagnostico", "a"),
+            booked("08:00", "Diagnostico", "b"),
+            booked("09:00", "TrocaOleo", "c")
+        ];
+
+        const slots = slotsOfDay(WEDNESDAY, "Diagnostico", "", appointments, BEFORE);
+
+        expect(at(slots, "08:30")).toMatchObject({ free: false, reason: "oficina cheia" });
+        expect(at(slots, "09:30")).toMatchObject({ free: true, taken: 0 });
+    });
+
+    it("o motivo mostrado segue a ordem: já passou, veículo ocupado, oficina cheia", () => {
+        const appointments = ["a", "b", CAR].map(vehicle => booked("09:00", "TrocaOleo", vehicle));
+
+        const later = slotsOfDay(WEDNESDAY, "TrocaOleo", CAR, appointments, BEFORE);
+        const now = slotsOfDay(WEDNESDAY, "TrocaOleo", CAR, appointments, new Date("2026-09-16T12:30:00Z"));
+
+        expect(at(later, "09:00").reason).toBe("veículo ocupado");
+        expect(at(now, "09:00").reason).toBe("já passou");
+    });
 });
