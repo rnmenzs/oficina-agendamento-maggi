@@ -35,6 +35,8 @@ services:
       # connection string pelo Npgsql.
       CONNECTION_STRING: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password='${POSTGRES_PASSWORD}'
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      # Sem JWT_SECRET no .env a API sobe com este valor; troque fora do ambiente local.
+      JWT_SECRET: ${JWT_SECRET:-oficina-maggi-jwt-secret-chave-de-pelo-menos-32-caracteres}
       TZ: America/Sao_Paulo
     ports:
       # A mesma 5062 que o dotnet run usa, para o frontend não precisar saber de onde a API vem.
