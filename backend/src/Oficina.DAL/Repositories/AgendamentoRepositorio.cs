@@ -247,11 +247,7 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
     }
 
     public async Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
-        DateTimeOffset? de,
-        DateTimeOffset? ate,
-        StatusAgendamento? status,
-        int pagina,
-        int tamanhoDaPagina,
+        FiltroDaAgenda filtro,
         CancellationToken cancellationToken
     )
     {
@@ -261,24 +257,32 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         // inicio não seria usado. Quem traduz dia em faixa é o HorarioDaOficina.
         // Os casts são obrigatórios: sem eles o Postgres não consegue deduzir o tipo do parâmetro,
         // porque o primeiro uso é um IS NULL, que serve para qualquer tipo.
-        const string filtro = """
+        // O cliente entra por subconsulta, e não por junção: a contagem não tem junção nenhuma, e
+        // é o mesmo texto de filtro que serve às duas consultas.
+        const string condicoes = """
             WHERE (@De::timestamptz IS NULL OR a.inicio >= @De::timestamptz)
               AND (@Ate::timestamptz IS NULL OR a.inicio < @Ate::timestamptz)
               AND (@Status::text IS NULL OR a.status = @Status::text)
+              AND (@ClienteId::uuid IS NULL OR a.veiculo_id IN (
+                      SELECT id FROM veiculos WHERE cliente_id = @ClienteId::uuid))
             """;
 
-        const string sql = $"""
+        // A ordem é escolhida aqui entre dois textos fixos, e nunca interpolada de fora: ORDER BY
+        // não aceita parâmetro, então o que vem de fora é o booleano, não o SQL.
+        var ordem = filtro.MaisRecentesPrimeiro ? "a.inicio DESC, a.id DESC" : "a.inicio, a.id";
+
+        var sql = $"""
             SELECT
             {ColunasDaAgenda}
             FROM agendamentos a
             {Juncoes}
-            {filtro}
-            ORDER BY a.inicio, a.id
+            {condicoes}
+            ORDER BY {ordem}
             LIMIT @Tamanho OFFSET @Pulo;
 
             SELECT count(*)
             FROM agendamentos a
-            {filtro};
+            {condicoes};
             """;
 
         await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);
@@ -288,11 +292,12 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
             sql,
             new
             {
-                De = de?.UtcDateTime,
-                Ate = ate?.UtcDateTime,
-                Status = status?.ToString(),
-                Tamanho = tamanhoDaPagina,
-                Pulo = (pagina - 1) * tamanhoDaPagina
+                De = filtro.De?.UtcDateTime,
+                Ate = filtro.Ate?.UtcDateTime,
+                Status = filtro.Status?.ToString(),
+                filtro.ClienteId,
+                Tamanho = filtro.TamanhoDaPagina,
+                Pulo = (filtro.Pagina - 1) * filtro.TamanhoDaPagina
             },
             cancellationToken: cancellationToken
         ));

@@ -46,6 +46,9 @@ export type AppointmentFilter = {
     dataInicio?: Day;
     dataFim?: Day;
     status?: AppointmentStatus;
+    clienteId?: Id;
+    /** "desc" é do mais recente para o mais antigo, que é como uma ficha lê o histórico. */
+    ordem?: "asc" | "desc";
     pagina: number;
     tamanhoDaPagina: number;
 };

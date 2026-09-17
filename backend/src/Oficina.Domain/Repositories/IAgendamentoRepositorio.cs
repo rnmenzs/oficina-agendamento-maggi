@@ -44,11 +44,7 @@ public interface IAgendamentoRepositorio
     // Filtro e paginação no SQL, nunca em memória. O período chega como faixa meia-aberta de
     // instantes, e não como data: assim a comparação é direta contra a coluna e usa o índice.
     Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
-        DateTimeOffset? de,
-        DateTimeOffset? ate,
-        StatusAgendamento? status,
-        int pagina,
-        int tamanhoDaPagina,
+        FiltroDaAgenda filtro,
         CancellationToken cancellationToken
     );
 }

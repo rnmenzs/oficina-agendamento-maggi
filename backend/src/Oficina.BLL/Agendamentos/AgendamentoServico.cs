@@ -118,14 +118,25 @@ public sealed class AgendamentoServico
         DateOnly? dataInicio,
         DateOnly? dataFim,
         string? status,
+        Guid? clienteId,
+        string? ordem,
         int pagina,
         int tamanhoDaPagina,
         CancellationToken cancellationToken
     )
     {
-        var filtro = string.IsNullOrWhiteSpace(status)
+        var statusFiltrado = string.IsNullOrWhiteSpace(status)
             ? (StatusAgendamento?)null
             : Converter<StatusAgendamento>(status, "Status");
+
+        // Duas opções e nada mais: a ficha do cliente quer o histórico do mais recente para o mais
+        // antigo, a agenda quer a ordem do dia. Texto desconhecido é recusa, como no status.
+        var maisRecentesPrimeiro = (ordem ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "" or "asc" => false,
+            "desc" => true,
+            _ => throw new DomainException("Ordem inválida. Use 'asc' ou 'desc'.")
+        };
 
         if (dataInicio is not null && dataFim is not null && dataFim < dataInicio)
         {
@@ -143,11 +154,7 @@ public sealed class AgendamentoServico
         tamanhoDaPagina = Math.Clamp(tamanhoDaPagina, 1, TamanhoMaximoDaPagina);
 
         var resultado = await _agendamentos.ListarAsync(
-            de,
-            ate,
-            filtro,
-            pagina,
-            tamanhoDaPagina,
+            new FiltroDaAgenda(de, ate, statusFiltrado, clienteId, maisRecentesPrimeiro, pagina, tamanhoDaPagina),
             cancellationToken
         );
 

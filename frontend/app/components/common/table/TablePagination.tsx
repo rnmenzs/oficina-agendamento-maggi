@@ -9,13 +9,15 @@ type TablePaginationProps = {
     total: number;
     /** O que está sendo contado, para o total dizer "de 8 agendamentos" e não só "de 8". */
     unit?: string;
+    /** Com uma página só, Anterior e Próxima são dois botões mortos: a contagem basta. */
+    controls?: boolean;
     pageSizes?: readonly number[];
     onChange: (page: number) => void;
     onPageSize?: (pageSize: number) => void;
 };
 
 export function TablePagination({
-    page, pageSize, total, unit, pageSizes, onChange, onPageSize
+    page, pageSize, total, unit, controls = true, pageSizes, onChange, onPageSize
 }: TablePaginationProps) {
     const pages = Math.max(1, Math.ceil(total / pageSize));
     const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -51,19 +53,23 @@ export function TablePagination({
                     </div>
                 )}
 
-                <Button variant="plain" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-                    <ChevronLeft size={16} aria-hidden />
-                    Anterior
-                </Button>
+                {controls && (
+                    <>
+                        <Button variant="plain" disabled={page <= 1} onClick={() => onChange(page - 1)}>
+                            <ChevronLeft size={16} aria-hidden />
+                            Anterior
+                        </Button>
 
-                <span className="px-1 text-sm whitespace-nowrap text-muted">
-                    Página {page} de {pages}
-                </span>
+                        <span className="px-1 text-sm whitespace-nowrap text-muted">
+                            Página {page} de {pages}
+                        </span>
 
-                <Button variant="plain" disabled={page >= pages} onClick={() => onChange(page + 1)}>
-                    Próxima
-                    <ChevronRight size={16} aria-hidden />
-                </Button>
+                        <Button variant="plain" disabled={page >= pages} onClick={() => onChange(page + 1)}>
+                            Próxima
+                            <ChevronRight size={16} aria-hidden />
+                        </Button>
+                    </>
+                )}
             </div>
         </div>
     );

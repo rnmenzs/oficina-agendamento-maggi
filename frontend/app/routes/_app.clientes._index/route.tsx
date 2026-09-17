@@ -1,0 +1,188 @@
+import { Search } from "lucide-react";
+import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+
+import { ClientForm, CLIENT_FIELDS, type ClientFieldErrors } from "~/components/client/ClientForm";
+import { ClientTable } from "~/components/client/ClientTable";
+import { Button } from "~/components/common/button/Button";
+import { Card } from "~/components/common/card/Card";
+import { FormText } from "~/components/common/forms/FormText";
+import { StateEmpty } from "~/components/common/state/StateEmpty";
+import { StateError } from "~/components/common/state/StateError";
+import { useModal } from "~/hooks/useModal";
+import { useNotification } from "~/hooks/useNotification";
+import { create, list as listClients } from "~/services/ServiceClient";
+import { list as listVehicles } from "~/services/ServiceVehicle";
+import { ApiError } from "~/services/ServiceHttp";
+import type { ClientResponse, CreateClientRequest } from "~/types/TypeClient";
+import type { Id } from "~/types/TypeCommon";
+import { fieldErrorOf } from "~/utils/fieldError";
+import { normalizePhone } from "~/utils/phone";
+import type { Route } from "./+types/route";
+
+export function meta() {
+    return [{ title: "Clientes · Oficina Maggi" }];
+}
+
+// A busca casa com nome, e-mail e telefone. No telefone a comparação é por dígito: quem digita
+// "(11) 9" está procurando um número, não uma pontuação.
+function matches(client: ClientResponse, term: string): boolean {
+    const digits = normalizePhone(term);
+
+    return client.nome.toLowerCase().includes(term.toLowerCase())
+        || client.email.toLowerCase().includes(term.toLowerCase())
+        || (digits.length > 0 && client.telefone.includes(digits));
+}
+
+// A contagem de veículos não vem junto do cliente, então a frota inteira vem numa chamada só e a
+// conta é feita aqui — uma consulta por linha da lista seria pior.
+export async function clientLoader() {
+    const [clients, vehicles] = await Promise.all([listClients(), listVehicles()]);
+
+    const counts: Record<Id, number> = {};
+
+    for (const vehicle of vehicles) {
+        counts[vehicle.clienteId] = (counts[vehicle.clienteId] ?? 0) + 1;
+    }
+
+    return { clients, counts };
+}
+
+export function ErrorBoundary() {
+    return (
+        <Card>
+            <StateError description="Não deu para carregar os clientes. Tente de novo em instantes.">
+                <Button variant="primary" onClick={() => location.reload()}>Tentar de novo</Button>
+            </StateError>
+        </Card>
+    );
+}
+
+export default function Clients({ loaderData }: Route.ComponentProps) {
+    const { clients, counts } = loaderData;
+    const [search, setSearch] = useSearchParams();
+    const { open } = useModal();
+    const { notify } = useNotification();
+    const navigate = useNavigate();
+
+    const term = (search.get("busca") ?? "").trim();
+    const found = term ? clients.filter(client => matches(client, term)) : clients;
+
+    function searchFor(value: string) {
+        const next = new URLSearchParams(search);
+
+        if (value) next.set("busca", value); else next.delete("busca");
+
+        setSearch(next, { preventScrollReset: true });
+    }
+
+    // Cadastrar leva para a ficha, porque o passo seguinte é sempre o mesmo: o cliente novo não tem
+    // veículo, e sem veículo ele não pode ser agendado.
+    async function register() {
+        const created = await open<ClientResponse>(
+            close => <ClientCreation onDone={close} />,
+            { width: "medium" }
+        );
+
+        if (!created) return;
+
+        notify(`${created.nome} foi cadastrado. Agora adicione os veículos dele.`);
+        navigate(`/clientes/${created.id}`);
+    }
+
+    return (
+        <>
+            <header className="flex flex-wrap items-end justify-between gap-4">
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-semibold tracking-tight text-balance">Clientes</h1>
+                    <p className="mt-0.5 text-sm text-muted">
+                        {term
+                            ? `${found.length} ${found.length === 1 ? "resultado" : "resultados"} para "${term}"`
+                            : "Quem tem veículo atendido nesta unidade."}
+                    </p>
+                </div>
+
+                <Button variant="primary" onClick={register}>Novo cliente</Button>
+            </header>
+
+            <Card>
+                <form
+                    className="flex flex-wrap items-end gap-3 px-4 py-3.5"
+                    onSubmit={event => {
+                        event.preventDefault();
+                        searchFor(new FormData(event.currentTarget).get("busca") as string);
+                    }}
+                >
+                    <div className="min-w-64 flex-1">
+                        <FormText
+                            label="Buscar"
+                            name="busca"
+                            type="search"
+                            icon={Search}
+                            placeholder="Nome, e-mail ou telefone"
+                            defaultValue={term}
+                            key={term}
+                        />
+                    </div>
+
+                    <Button type="submit" variant="primary">Buscar</Button>
+                    {term && <Button onClick={() => searchFor("")}>Limpar</Button>}
+                </form>
+            </Card>
+
+            <Card>
+                {found.length === 0
+                    ? (
+                        <StateEmpty
+                            title="Nenhum cliente encontrado"
+                            description={term
+                                ? `Ninguém com "${term}" no nome, no e-mail ou no telefone.`
+                                : "Ninguém cadastrado ainda. O primeiro cliente começa aqui."}
+                        >
+                            {term && <Button onClick={() => searchFor("")}>Ver todos</Button>}
+                            <Button variant="primary" onClick={register}>Cadastrar cliente</Button>
+                        </StateEmpty>
+                    )
+                    : (
+                        <ClientTable
+                            clients={found}
+                            vehicleCount={client => counts[client.id] ?? 0}
+                            linkTo={client => `/clientes/${client.id}`}
+                            onOpen={client => navigate(`/clientes/${client.id}`)}
+                        />
+                    )}
+            </Card>
+        </>
+    );
+}
+
+// O envio vive aqui dentro para a janela poder mostrar a recusa da API sem fechar: quem fecha é a
+// resposta boa, e é ela que a promessa devolve.
+function ClientCreation({ onDone }: { onDone: (client?: ClientResponse) => void }) {
+    const { notify } = useNotification();
+    const [sending, setSending] = useState(false);
+    const [errors, setErrors] = useState<ClientFieldErrors>({});
+
+    async function submit(client: CreateClientRequest) {
+        setSending(true);
+        setErrors({});
+
+        try {
+            onDone(await create(client));
+        } catch (failure) {
+            setSending(false);
+
+            const message = failure instanceof ApiError
+                ? failure.message
+                : "Não foi possível cadastrar.";
+
+            // Recusa de campo volta para o campo; o que não é de campo nenhum vira aviso, que é o
+            // canal de quem precisa saber que o envio não passou.
+            const field = fieldErrorOf(message, CLIENT_FIELDS);
+
+            if (field) setErrors(field); else notify(message, "error");
+        }
+    }
+
+    return <ClientForm errors={errors} sending={sending} onCancel={() => onDone()} onSubmit={submit} />;
+}

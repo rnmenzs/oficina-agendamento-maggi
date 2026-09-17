@@ -59,6 +59,13 @@
     [hidden] {
         display: none !important;
     }
+
+    /* O X que o Chrome desenha dentro do type="search": some do nada quando o campo esvazia, não
+       segue a tipografia e ainda briga com o botão Limpar, que é quem faz esse papel aqui. */
+    [type="search"]::-webkit-search-cancel-button,
+    [type="search"]::-webkit-search-decoration {
+        appearance: none;
+    }
 }
 
 /* Fio de 1px em volta da célula sem dobrar na junção: sombra não ocupa espaço, então células

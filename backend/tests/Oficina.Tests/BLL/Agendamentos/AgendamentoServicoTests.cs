@@ -402,8 +402,10 @@ public class AgendamentoServicoTests
         var (servico, veiculos, _) = Montar();
         await CriarTres(servico, veiculos);
 
-        var primeira = await servico.ListarAsync(null, null, null, 1, 2, CancellationToken.None);
-        var segunda = await servico.ListarAsync(null, null, null, 2, 2, CancellationToken.None);
+        var primeira = await servico.ListarAsync(
+null, null, null, null, null, 1, 2, CancellationToken.None);
+        var segunda = await servico.ListarAsync(
+null, null, null, null, null, 2, 2, CancellationToken.None);
 
         Assert.Equal(3, primeira.Total);
         Assert.Equal(2, primeira.TotalDePaginas);
@@ -418,9 +420,9 @@ public class AgendamentoServicoTests
         await CriarTres(servico, veiculos);
 
         var naQuarta = await servico.ListarAsync(
-            new DateOnly(2026, 9, 16), new DateOnly(2026, 9, 16), null, 1, 10, CancellationToken.None);
+new DateOnly(2026, 9, 16), new DateOnly(2026, 9, 16), null, null, null, 1, 10, CancellationToken.None);
         var naQuinta = await servico.ListarAsync(
-            new DateOnly(2026, 9, 17), new DateOnly(2026, 9, 17), null, 1, 10, CancellationToken.None);
+new DateOnly(2026, 9, 17), new DateOnly(2026, 9, 17), null, null, null, 1, 10, CancellationToken.None);
 
         Assert.Equal(3, naQuarta.Total);
         Assert.Equal(0, naQuinta.Total);
@@ -441,9 +443,9 @@ public class AgendamentoServicoTests
 
         var quarta = new DateOnly(2026, 9, 16);
         var osDois = await servico.ListarAsync(
-            quarta, quarta.AddDays(1), null, 1, 10, CancellationToken.None);
+quarta, quarta.AddDays(1), null, null, null, 1, 10, CancellationToken.None);
         var soAQuinta = await servico.ListarAsync(
-            quarta.AddDays(1), quarta.AddDays(1), null, 1, 10, CancellationToken.None);
+quarta.AddDays(1), quarta.AddDays(1), null, null, null, 1, 10, CancellationToken.None);
 
         Assert.Equal(2, osDois.Total);
         Assert.Equal(1, soAQuinta.Total);
@@ -459,9 +461,9 @@ public class AgendamentoServicoTests
         );
 
         var daQuartaEmDiante = await servico.ListarAsync(
-            new DateOnly(2026, 9, 16), null, null, 1, 10, CancellationToken.None);
+new DateOnly(2026, 9, 16), null, null, null, null, 1, 10, CancellationToken.None);
         var ateATerca = await servico.ListarAsync(
-            null, new DateOnly(2026, 9, 15), null, 1, 10, CancellationToken.None);
+null, new DateOnly(2026, 9, 15), null, null, null, 1, 10, CancellationToken.None);
 
         Assert.Equal(1, daQuartaEmDiante.Total);
         Assert.Equal(0, ateATerca.Total);
@@ -476,6 +478,8 @@ public class AgendamentoServicoTests
             () => servico.ListarAsync(
                 new DateOnly(2026, 9, 17),
                 new DateOnly(2026, 9, 16),
+                null,
+                null,
                 null,
                 1,
                 10,
@@ -498,7 +502,7 @@ public class AgendamentoServicoTests
         );
 
         var emAndamento = await servico.ListarAsync(
-            null, null, "emandamento", 1, 10, CancellationToken.None);
+null, null, "emandamento", null, null, 1, 10, CancellationToken.None);
 
         Assert.Single(emAndamento.Itens);
         Assert.Equal(criados[0].Id, emAndamento.Itens[0].Id);
@@ -509,10 +513,84 @@ public class AgendamentoServicoTests
     {
         var (servico, _, _) = Montar();
 
-        var pagina = await servico.ListarAsync(null, null, null, 0, 500, CancellationToken.None);
+        var pagina = await servico.ListarAsync(
+null, null, null, null, null, 0, 500, CancellationToken.None);
 
         Assert.Equal(1, pagina.Pagina);
         Assert.Equal(50, pagina.TamanhoDaPagina);
+    }
+
+    // A ficha do cliente lista só o que é dele, e quem recorta é o SQL: sem este filtro a tela
+    // teria de baixar a agenda inteira para separar em memória.
+    [Fact]
+    public async Task ListarAsync_filtra_pelo_cliente()
+    {
+        var (servico, veiculos, _, clientes) = MontarCom(2);
+        await CriarTres(servico, veiculos);
+
+        var doPrimeiro = await servico.ListarAsync(
+            null, null, null, clientes[0].Id, null, 1, 10, CancellationToken.None);
+        var doSegundo = await servico.ListarAsync(
+            null, null, null, clientes[1].Id, null, 1, 10, CancellationToken.None);
+
+        Assert.Equal(1, doPrimeiro.Total);
+        Assert.Equal(2, doSegundo.Total);
+        Assert.All(doPrimeiro.Itens, item => Assert.Equal(clientes[0].Id, item.ClienteId));
+        Assert.All(doSegundo.Itens, item => Assert.Equal(clientes[1].Id, item.ClienteId));
+    }
+
+    [Fact]
+    public async Task ListarAsync_nao_traz_nada_de_cliente_sem_agendamento()
+    {
+        var (servico, veiculos, _, clientes) = MontarCom(2);
+        await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[1].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+
+        var doPrimeiro = await servico.ListarAsync(
+            null, null, null, clientes[0].Id, null, 1, 10, CancellationToken.None);
+
+        Assert.Equal(0, doPrimeiro.Total);
+        Assert.Empty(doPrimeiro.Itens);
+    }
+
+    // Na agenda o dia corre para frente; na ficha o histórico corre para trás. É a mesma consulta,
+    // e é a ordem que muda — inclusive entre páginas, por isso ela é do banco e não da tela.
+    [Fact]
+    public async Task ListarAsync_devolve_do_mais_recente_para_o_mais_antigo_quando_pedido()
+    {
+        var (servico, veiculos, _) = Montar();
+
+        foreach (var (veiculo, minutos) in new[] { (veiculos[0], 0), (veiculos[1], 60), (veiculos[2], 120) })
+        {
+            await servico.CriarAsync(
+                new CriarAgendamentoRequest(veiculo.Id, NoveDaManha.AddMinutes(minutos), "TrocaOleo"),
+                CancellationToken.None
+            );
+        }
+
+        var crescente = await servico.ListarAsync(
+            null, null, null, null, "asc", 1, 10, CancellationToken.None);
+        var decrescente = await servico.ListarAsync(
+            null, null, null, null, "desc", 1, 10, CancellationToken.None);
+
+        Assert.Equal(NoveDaManha, crescente.Itens[0].Inicio);
+        Assert.Equal(NoveDaManha.AddMinutes(120), decrescente.Itens[0].Inicio);
+        Assert.Equal(NoveDaManha, decrescente.Itens[^1].Inicio);
+    }
+
+    [Fact]
+    public async Task ListarAsync_recusa_ordem_desconhecida()
+    {
+        var (servico, _, _) = Montar();
+
+        var excecao = await Assert.ThrowsAsync<DomainException>(
+            () => servico.ListarAsync(
+                null, null, null, null, "aleatoria", 1, 10, CancellationToken.None)
+        );
+
+        Assert.Contains("Ordem inválida", excecao.Message);
     }
 
     [Fact]
@@ -521,7 +599,8 @@ public class AgendamentoServicoTests
         var (servico, _, _) = Montar();
 
         await Assert.ThrowsAsync<DomainException>(
-            () => servico.ListarAsync(null, null, "Pausado", 1, 10, CancellationToken.None)
+            () => servico.ListarAsync(
+null, null, "Pausado", null, null, 1, 10, CancellationToken.None)
         );
     }
 
@@ -549,14 +628,32 @@ public class AgendamentoServicoTests
         AgendamentoRepositorioFalso Agendamentos
     ) Montar()
     {
-        var dono = Cliente.Reconstituir(
-            Guid.CreateVersion7(),
-            "Dono Teste",
-            "11988880001",
-            "dono@email.com",
-            Carimbo,
-            Carimbo
-        );
+        var (servico, veiculos, agendamentos, _) = MontarCom(1);
+
+        return (servico, veiculos, agendamentos);
+    }
+
+    // O primeiro dono fica com o primeiro veículo e o segundo com todos os outros: assim a mesma
+    // frota serve aos dois cenários, e o filtro por cliente tem de fato agendamento alheio no meio.
+    private static (
+        AgendamentoServico Servico,
+        IReadOnlyList<Veiculo> Veiculos,
+        AgendamentoRepositorioFalso Agendamentos,
+        IReadOnlyList<Cliente> Clientes
+    ) MontarCom(int quantidadeDeDonos)
+    {
+        // O primeiro não é numerado: os testes que conferem os dados do dono na resposta falam
+        // dele, e numerá-lo mudaria o que eles esperam sem nada ter mudado de verdade.
+        var clientes = Enumerable.Range(0, quantidadeDeDonos)
+            .Select(indice => Cliente.Reconstituir(
+                Guid.CreateVersion7(),
+                indice == 0 ? "Dono Teste" : $"Dono Teste {indice + 1}",
+                $"1198888000{indice + 1}",
+                indice == 0 ? "dono@email.com" : $"dono{indice + 1}@email.com",
+                Carimbo,
+                Carimbo
+            ))
+            .ToList();
 
         string[] placas = ["ABC1234", "DEF5678", "GHI9012", "JKL3456"];
         string[] modelos = ["Fiat Argo", "Chevrolet Onix", "Hyundai HB20", "Toyota Corolla"];
@@ -564,7 +661,7 @@ public class AgendamentoServicoTests
         var veiculos = placas
             .Select((placa, indice) => Veiculo.Reconstituir(
                 Guid.CreateVersion7(),
-                dono.Id,
+                clientes[Math.Min(indice, clientes.Count - 1)].Id,
                 placa,
                 modelos[indice],
                 2021,
@@ -573,14 +670,14 @@ public class AgendamentoServicoTests
             ))
             .ToList();
 
-        var agendamentos = new AgendamentoRepositorioFalso(veiculos, [dono]);
+        var agendamentos = new AgendamentoRepositorioFalso(veiculos, clientes);
         var servico = new AgendamentoServico(
             agendamentos,
             new VeiculoRepositorioFalso(veiculos),
             new RelogioFalso()
         );
 
-        return (servico, veiculos, agendamentos);
+        return (servico, veiculos, agendamentos, clientes);
     }
 
     // Relógio fixo: o teste diz em que instante o cenário acontece, em vez de depender de quando roda.
@@ -732,29 +829,27 @@ public class AgendamentoServicoTests
         }
 
         public Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
-            DateTimeOffset? de,
-            DateTimeOffset? ate,
-            StatusAgendamento? status,
-            int pagina,
-            int tamanhoDaPagina,
+            FiltroDaAgenda filtro,
             CancellationToken cancellationToken
         )
         {
-            var filtrados = Agendamentos
-                .Where(a => de is null || a.Inicio >= de)
-                .Where(a => ate is null || a.Inicio < ate)
-                .Where(a => status is null || a.Status == status)
-                .OrderBy(a => a.Inicio)
-                .ThenBy(a => a.Id)
-                .ToList();
+            var recortados = Agendamentos
+                .Where(a => filtro.De is null || a.Inicio >= filtro.De)
+                .Where(a => filtro.Ate is null || a.Inicio < filtro.Ate)
+                .Where(a => filtro.Status is null || a.Status == filtro.Status)
+                .Where(a => filtro.ClienteId is null || Donos(a).Dono.Id == filtro.ClienteId);
 
-            var itens = filtrados
-                .Skip((pagina - 1) * tamanhoDaPagina)
-                .Take(tamanhoDaPagina)
+            var ordenados = filtro.MaisRecentesPrimeiro
+                ? recortados.OrderByDescending(a => a.Inicio).ThenByDescending(a => a.Id).ToList()
+                : recortados.OrderBy(a => a.Inicio).ThenBy(a => a.Id).ToList();
+
+            var itens = ordenados
+                .Skip((filtro.Pagina - 1) * filtro.TamanhoDaPagina)
+                .Take(filtro.TamanhoDaPagina)
                 .Select(NaAgenda)
                 .ToList();
 
-            return Task.FromResult(new Pagina<AgendamentoNaAgenda>(itens, filtrados.Count));
+            return Task.FromResult(new Pagina<AgendamentoNaAgenda>(itens, ordenados.Count));
         }
 
         private static bool Ativo(Agendamento agendamento) =>
