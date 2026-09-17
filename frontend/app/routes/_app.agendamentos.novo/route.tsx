@@ -17,7 +17,7 @@ import { list as listClients } from "~/services/ServiceClient";
 import { listOfClient } from "~/services/ServiceVehicle";
 import { ApiError } from "~/services/ServiceHttp";
 import type { ServiceType } from "~/types/TypeAppointment";
-import { formatDayLong, instantOf, isDay, toDay } from "~/utils/date";
+import { formatDayLong, instantOf, isDay, today } from "~/utils/date";
 import { formatPhone } from "~/utils/phone";
 import { formatPlate } from "~/utils/plate";
 import { SERVICE_LABEL, SERVICE_MINUTES, SERVICE_TYPES } from "~/utils/service";
@@ -202,7 +202,7 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
                             label="Data"
                             name="dia"
                             value={day}
-                            min={toDay(new Date())}
+                            min={today()}
                             onChange={value => change({ dia: value, hora: "" })}
                         />
                     </div>

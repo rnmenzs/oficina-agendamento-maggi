@@ -3,7 +3,7 @@ import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { useFlipUp } from "~/hooks/useFlipUp";
 import { useOutsideClick } from "~/hooks/useOutsideClick";
 import type { Day, DayRange } from "~/types/TypeCommon";
-import { addDays, addMonths, fromDay, toDay } from "~/utils/date";
+import { addDays, addMonths, fromDay, toDay, today as workshopToday } from "~/utils/date";
 import type { CalendarDayState } from "../FormCalendar";
 
 // Calendário, cabeçalho e o rodapé com o "Limpar", mais a folga de `mt-1`.
@@ -22,7 +22,7 @@ type UseFormDateRange = {
 };
 
 export function useFormDateRange({ value, min, max, onChange }: UseFormDateRange) {
-    const today = toDay(new Date());
+    const today = workshopToday();
     const start = value.from || today;
     const [open, setOpen] = useState(false);
     const [anchor, setAnchor] = useState<Day>("");

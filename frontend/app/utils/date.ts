@@ -64,6 +64,14 @@ export function toDay(date: Date): Day {
     return `${date.getFullYear()}-${month}-${dayOfMonth}`;
 }
 
+/**
+ * Hoje para a oficina, e não para o relógio de quem abre a tela. Num fuso adiantado, o "hoje" do
+ * navegador já é amanhã lá — e um calendário com `min` nesse dia barraria o dia que ainda vale.
+ */
+export function today(): Day {
+    return workshopParts(new Date())[0];
+}
+
 /** Dia que o resto do código pode usar sem conferir: veio da URL, que qualquer um edita. */
 export function isDay(value: string | null): value is Day {
     return Boolean(value) && /^\d{4}-\d{2}-\d{2}$/.test(value!) && !Number.isNaN(fromDay(value!).getTime());
