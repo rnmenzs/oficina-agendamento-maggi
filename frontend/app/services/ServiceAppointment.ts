@@ -14,6 +14,8 @@ export function list(filter: AppointmentFilter): Promise<PageResponse<Appointmen
             dataInicio: filter.dataInicio,
             dataFim: filter.dataFim,
             status: filter.status,
+            clienteId: filter.clienteId,
+            ordem: filter.ordem,
             pagina: filter.pagina,
             tamanhoDaPagina: filter.tamanhoDaPagina
         }
@@ -50,6 +52,16 @@ export async function occupyingOn(day: Day): Promise<AppointmentResponse[]> {
         everyPage({ dataInicio: day, dataFim: day, status, pagina: 1, tamanhoDaPagina: 50 })));
 
     return lists.flat();
+}
+
+// O histórico de um cliente sai pronto do servidor: recortado, ordenado e paginado. Montá-lo aqui
+// obrigaria a baixar a agenda inteira para separar em memória o que é dele.
+export function listOfClient(
+    clientId: Id,
+    page: number,
+    pageSize: number
+): Promise<PageResponse<AppointmentResponse>> {
+    return list({ clienteId: clientId, ordem: "desc", pagina: page, tamanhoDaPagina: pageSize });
 }
 
 export function create(appointment: CreateAppointmentRequest): Promise<AppointmentResponse> {
