@@ -17,7 +17,7 @@ import { list as listClients } from "~/services/ServiceClient";
 import { listOfClient } from "~/services/ServiceVehicle";
 import { ApiError } from "~/services/ServiceHttp";
 import type { ServiceType } from "~/types/TypeAppointment";
-import { formatDayLong, instantOf, isDay, today } from "~/utils/date";
+import { dayOf, formatDayLong, formatTime, instantOf, isDay, today } from "~/utils/date";
 import { formatPhone } from "~/utils/phone";
 import { formatPlate } from "~/utils/plate";
 import { SERVICE_LABEL, SERVICE_MINUTES, SERVICE_TYPES } from "~/utils/service";
@@ -145,9 +145,17 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
     useEffect(() => {
         if (!actionData?.created) return;
 
-        notify(`${formatPlate(actionData.created.placa)} agendado para ${formatDayLong(day)}, ${time}.`);
-        navigate(`/agendamentos/${actionData.created.id}`);
-    }, [actionData, day, time, notify, navigate]);
+        // O que foi salvo vem do que a API devolveu, e não do que está na URL agora: mexer nos
+        // campos enquanto o envio corre faria o aviso anunciar um horário que não foi gravado.
+        const saved = actionData.created;
+
+        notify(
+            `${formatPlate(saved.placa)} agendado para ${formatDayLong(dayOf(saved.inicio))}, `
+            + `${formatTime(saved.inicio)}.`
+        );
+
+        navigate(`/agendamentos/${saved.id}`);
+    }, [actionData, notify, navigate]);
 
     return (
         <>
