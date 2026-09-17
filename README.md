@@ -150,6 +150,13 @@ cd backend
 dotnet test
 ```
 
+São duas suítes. `Oficina.Tests` (unitária) prova as regras de negócio contra repositórios falsos e roda sem nada no ar. `Oficina.IntegrationTests` sobe a API em memória sobre um banco criado na hora no PostgreSQL do Compose — `oficina_teste_<id>`, com os scripts `001` e `002`, apagado no fim — e prova o que só o banco prova: a constraint de exclusão e o advisory lock sob pedidos simultâneos, a gravação condicional de status, a consulta de pico e o formato das recusas. Precisa do banco no ar (`docker compose up -d db`); sem ele, falha dizendo isso. Para rodar só uma:
+
+```bash
+dotnet test tests/Oficina.Tests
+dotnet test tests/Oficina.IntegrationTests
+```
+
 ### 3. Frontend
 
 Precisa de Node 22 ou superior e do pnpm. Se não tiver o pnpm, `corepack enable` já o disponibiliza
