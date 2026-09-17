@@ -1,5 +1,11 @@
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Oficina.DTO.Agendamentos;
 using Oficina.DTO.Clientes;
 using Oficina.DTO.Veiculos;
@@ -11,31 +17,56 @@ namespace Oficina.IntegrationTests.Infra;
 public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private const string VariavelDaConexao = "CONNECTION_STRING";
+    private const string VariavelDoSegredo = "JWT_SECRET";
+
+    // Qualquer valor com 32 caracteres serve: o token só precisa ser emitido e conferido pelo mesmo host.
+    private const string SegredoDeTeste = "segredo-dos-testes-de-integracao-da-oficina";
 
     private BancoDeTeste? _banco;
     private string? _conexaoOriginal;
+    private string? _segredoOriginal;
 
     public HttpClient Cliente { get; private set; } = null!;
+
+    // Os endpoints exigem [Authorize]. Em vez de gerar um JWT para cada teste, o esquema de
+    // autenticação é trocado por um que aceita tudo: o que se prova aqui é a regra da API, não o
+    // middleware de JWT. O login em si continua real — o LoginTests bate nele com a tabela usuarios.
+    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    {
+        builder.ConfigureServices(services =>
+        {
+            services.AddAuthentication(AutenticacaoDeTeste.Esquema)
+                .AddScheme<AuthenticationSchemeOptions, AutenticacaoDeTeste>(AutenticacaoDeTeste.Esquema, _ => { });
+
+            services.PostConfigure<AuthenticationOptions>(options =>
+            {
+                options.DefaultAuthenticateScheme = AutenticacaoDeTeste.Esquema;
+                options.DefaultChallengeScheme = AutenticacaoDeTeste.Esquema;
+            });
+        });
+    }
 
     public async Task InitializeAsync()
     {
         _banco = await BancoDeTeste.CriarAsync();
 
-        // O Program.cs lê CONNECTION_STRING do ambiente antes do .env, então é aqui que a API é
-        // apontada para o banco de teste — antes de o host existir. O valor que estava lá volta no
-        // fim: o runner da IDE reaproveita o processo entre execuções, e a próxima herdaria uma
-        // string apontando para um banco já apagado.
+        // O Program.cs lê o ambiente antes do .env, então é aqui que a API é apontada para o banco
+        // de teste e ganha um segredo de JWT próprio — antes de o host existir, e sem depender do
+        // .env de quem roda. Os valores que estavam lá voltam no fim: o runner da IDE reaproveita o
+        // processo entre execuções, e a próxima herdaria uma string apontando para um banco já apagado.
         // Se o host não subir, o xUnit não chama o DisposeAsync — o banco é apagado aqui mesmo.
         try
         {
             _conexaoOriginal = Environment.GetEnvironmentVariable(VariavelDaConexao);
+            _segredoOriginal = Environment.GetEnvironmentVariable(VariavelDoSegredo);
             Environment.SetEnvironmentVariable(VariavelDaConexao, _banco.ConnectionString);
+            Environment.SetEnvironmentVariable(VariavelDoSegredo, SegredoDeTeste);
 
             Cliente = CreateClient();
         }
         catch
         {
-            Environment.SetEnvironmentVariable(VariavelDaConexao, _conexaoOriginal);
+            RestaurarAmbiente();
             await _banco.DisposeAsync();
             throw;
         }
@@ -52,9 +83,15 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
         }
         finally
         {
-            Environment.SetEnvironmentVariable(VariavelDaConexao, _conexaoOriginal);
+            RestaurarAmbiente();
             if (_banco is not null) await _banco.DisposeAsync();
         }
+    }
+
+    private void RestaurarAmbiente()
+    {
+        Environment.SetEnvironmentVariable(VariavelDaConexao, _conexaoOriginal);
+        Environment.SetEnvironmentVariable(VariavelDoSegredo, _segredoOriginal);
     }
 
     // ── Dados de cada teste ────────────────────────────────────────────────
@@ -130,5 +167,24 @@ public static class Dia
         var dia = segunda.AddDays(indice / 5 * 7 + indice % 5);
 
         return new DateTimeOffset(dia.Year, dia.Month, dia.Day, hora, minuto, 0, FusoDaOficina);
+    }
+}
+
+// Esquema que aceita qualquer requisição como se viesse de um usuário logado. Registrado no
+// ConfigureWebHost do ApiDeTeste no lugar do JWT.
+public sealed class AutenticacaoDeTeste(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder
+) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    public const string Esquema = "Teste";
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var identidade = new ClaimsIdentity([new Claim(ClaimTypes.Name, "teste")], Esquema);
+        var bilhete = new AuthenticationTicket(new ClaimsPrincipal(identidade), Esquema);
+
+        return Task.FromResult(AuthenticateResult.Success(bilhete));
     }
 }
