@@ -61,7 +61,15 @@ Com o `.env` preenchido, um comando sobe banco, API e frontend:
 ./run.sh
 ```
 
-Ele espera cada peça responder antes de seguir para a próxima, aplica as migrations pendentes e, no fim, imprime os endereços. `Ctrl+C` derrube a API e o frontend; o banco continua de pé (`docker compose stop db` para ele). Para recomeçar com o banco vazio, `./run.sh --reset`.
+Ele espera cada peça responder antes de seguir para a próxima, aplica as migrations pendentes e, no fim, imprime os endereços. Com tudo no ar, o terminal escuta teclas:
+
+| Tecla | Faz |
+|---|---|
+| `r` | reinicia a API e o frontend |
+| `z` | zera o banco: apaga o volume, recria com os scripts e sobe a API de novo |
+| `q` ou `Ctrl+C` | derruba tudo, banco incluído — o volume fica, os dados voltam na próxima subida |
+
+Para já começar com o banco vazio, `./run.sh --reset`.
 
 A saída de cada processo vai para `.run/api.log` e `.run/web.log`, apagados a cada execução. Se uma porta já estiver ocupada, o script recusa em vez de subir pela metade.
 
@@ -183,9 +191,9 @@ carregamento. Serve para revisar a interface sem depender de dados.
 
 **Capacidade é pico, não contagem de janela.** A regra fala em três serviços *ao mesmo tempo*, então a pergunta que o banco responde é "qual o maior número de serviços simultâneos dentro deste período?" — e não "quantos cruzam este período". A diferença aparece com três serviços de trinta minutos em sequência: eles cruzam a janela de um de noventa sem nunca estarem juntos, e contá-los recusaria um horário que cabe. A consulta mede a lotação no início da janela e no início de cada agendamento dentro dela, porque o pico só muda quando alguém começa.
 
-**Sobreposição por veículo garantida por constraint de exclusão.** Se duas requisições passarem pela validação ao mesmo tempo, o banco recusa a segunda — proteção contra concorrência sem código nenhum. A capacidade de três simultâneos não cabe numa constraint declarativa e é checada na BLL.
+**Sobreposição por veículo garantida por constraint de exclusão.** Se duas requisições passarem pela validação ao mesmo tempo, o banco recusa a segunda — proteção contra concorrência sem código nenhum. A capacidade de três simultâneos não cabe numa constraint declarativa: é checada na BLL e garantida na gravação, que mede o pico de novo sob um advisory lock, na mesma transação do `INSERT`.
 
-**Não sobrepor o mesmo veículo é checado na BLL e garantido pelo banco.** A checagem na camada de regras mantém a regra junto das outras e recusa antes de tentar gravar. Sozinha ela tem brecha: entre consultar e gravar cabe outra requisição, e as duas passariam pela consulta. A constraint de exclusão fecha essa janela, e é o único mecanismo aqui que resiste a requisições simultâneas.
+**As duas regras que consultam dados são checadas na BLL e garantidas na gravação.** A checagem na camada de regras mantém a regra junto das outras e recusa antes de tentar gravar. Sozinha ela tem brecha: entre consultar e gravar cabe outra requisição, e as duas passariam pela consulta. Para o veículo, a constraint de exclusão fecha essa janela. Para a capacidade, `pg_advisory_xact_lock` serializa quem grava agendamento: a gravação mede o pico dentro da transação, já enxergando o que a requisição anterior gravou, e recusa se não couber. Seis pedidos simultâneos para o mesmo horário entravam os seis antes disso; agora entram três.
 
 **Alterar status é um endpoint só, e a gravação confere o status lido.** `PATCH /api/agendamentos/{id}/status` recebe o destino, em vez de três rotas por ação, porque a tela já precisa calcular quais transições valem para o status atual. A gravação leva o status anterior no `WHERE`: entre ler e gravar cabe outra requisição, e sem essa condição duas chamadas simultâneas validariam a transição sobre o mesmo status e a segunda apagaria a primeira, deixando um estado que nenhuma transição permite. Se nada for atualizado, a resposta é conflito.
 
