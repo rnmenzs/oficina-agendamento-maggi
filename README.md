@@ -3,7 +3,7 @@
 Sistema para uma oficina mecânica agendar serviços (troca de óleo, revisão e diagnóstico) nos veículos dos seus clientes.
 
 - **Backend:** ASP.NET Core Web API (.NET 10), DDD em camadas (Domain, BLL, DAL, DTO, Api), SQL escrito à mão com Dapper sobre PostgreSQL, Swagger, testes em xUnit.
-- **Frontend:** React + TypeScript + React Router v7 em modo framework, SPA (`ssr: false`), rotas por pasta com `flatRoutes()`.
+- **Frontend:** React + TypeScript + React Router v7 em modo framework, SPA (`ssr: false`), rotas por pasta com `flatRoutes()`, testes em Vitest.
 
 ## Estrutura do repositório
 
@@ -15,7 +15,8 @@ backend/                  solução .NET (Oficina.slnx)
   src/Oficina.DTO         requests e responses da API
   src/Oficina.Api         controllers, injeção de dependência, middleware de erros, Swagger, CORS
   tests/Oficina.Tests     testes unitários das regras de negócio (xUnit)
-frontend/                 aplicação React Router v7 (SPA)
+  tests/Oficina.IntegrationTests  API em memória sobre um banco criado na hora (xUnit)
+frontend/                 aplicação React Router v7 (SPA); testes unitários em app/utils (Vitest)
 scripts/                  scripts SQL numerados: tabelas, restrições e índices, seed e migrations
 docker-compose.yml        PostgreSQL já com os scripts executados, e a API
 backend/Dockerfile        imagem da API, em dois estágios
@@ -183,6 +184,18 @@ Conferir os tipos e gerar o pacote de produção:
 pnpm typecheck
 pnpm build
 ```
+
+Testes:
+
+```bash
+pnpm test
+```
+
+São testes unitários com o Vitest sobre `app/utils`, que é onde as regras do domínio aparecem do
+lado de cá: a oferta de horários com as três vagas e o pico dentro da janela, o expediente de
+sábado, as transições de status, as máscaras de placa e telefone e a leitura de dia e hora no fuso
+da oficina. Não sobem navegador nem precisam do backend. O relógio entra por parâmetro em tudo que
+depende dele, e a suíte passa igual em qualquer fuso da máquina.
 
 Há ainda a rota `/catalogo`, fora da navegação: ela mostra cada componente da interface em todos os
 seus estados, inclusive os difíceis de alcançar numa tela real, como campo com erro ou falha de
