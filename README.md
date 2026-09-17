@@ -66,10 +66,10 @@ Ele espera cada peça responder antes de seguir para a próxima, aplica as migra
 | Tecla | Faz |
 |---|---|
 | `r` | reinicia a API e o frontend |
-| `z` | zera o banco: apaga o volume, recria com os scripts e sobe a API de novo |
+| `z` | zera o banco: esvazia as três tabelas, sem seed; o esquema, a API e o frontend ficam |
 | `q` ou `Ctrl+C` | derruba tudo, banco incluído — o volume fica, os dados voltam na próxima subida |
 
-Para já começar com o banco vazio, `./run.sh --reset`.
+Para recriar o banco do zero com o seed, `./run.sh --reset`.
 
 A saída de cada processo vai para `.run/api.log` e `.run/web.log`, apagados a cada execução. Se uma porta já estiver ocupada, o script recusa em vez de subir pela metade.
 
