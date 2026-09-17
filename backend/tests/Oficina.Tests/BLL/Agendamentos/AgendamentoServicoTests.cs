@@ -124,6 +124,34 @@ public class AgendamentoServicoTests
         Assert.Equal(NoveDaManha.AddMinutes(90), longo.Fim);
     }
 
+    // A reprodução exata do que a API recusava: a janela do novo serviço tem três numa metade e
+    // dois na outra. Os três cruzam a janela, mas o pico continua dentro do limite.
+    [Fact]
+    public async Task CriarAsync_aceita_quando_a_janela_tem_metade_cheia_e_metade_livre()
+    {
+        var (servico, veiculos, _) = Montar();
+
+        await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+        await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[1].Id, NoveDaManha, "TrocaOleo"),
+            CancellationToken.None
+        );
+        await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[2].Id, NoveDaManha.AddMinutes(30), "TrocaOleo"),
+            CancellationToken.None
+        );
+
+        var revisao = await servico.CriarAsync(
+            new CriarAgendamentoRequest(veiculos[3].Id, NoveDaManha, "Revisao"),
+            CancellationToken.None
+        );
+
+        Assert.Equal("Agendado", revisao.Status);
+    }
+
     // O contrário do teste acima: aqui os três acontecem de verdade ao mesmo tempo, e o quarto
     // não cabe em nenhum instante da janela.
     [Fact]

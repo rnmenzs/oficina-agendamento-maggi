@@ -9,7 +9,7 @@ namespace Oficina.BLL.Agendamentos;
 
 public sealed class AgendamentoServico
 {
-    // Capacidade é a única regra que precisa perguntar ao banco quantos já existem, e por isso
+    // Capacidade é a única regra que precisa perguntar ao banco o que já está marcado, e por isso
     // fica aqui: na entidade, ela obrigaria o domínio a conhecer repositório.
     private const int MaximoDeServicosSimultaneos = 3;
 
@@ -191,18 +191,22 @@ public sealed class AgendamentoServico
 
     // Capacidade tem a mesma corrida, e nela o banco não ajuda: não existe constraint declarativa
     // para "no máximo três ao mesmo tempo". Resolver exigiria lock.
+    //
+    // O que se compara é o PICO dentro da janela, não quantos a cruzam. O novo agendamento cobre a
+    // janela inteira, então ele soma 1 em todo instante dela: se o pico de agora já é três, não
+    // cabe mais um em nenhum momento — daí o >= continuar certo.
     private async Task GarantirQueCabeNaCapacidade(
         Agendamento agendamento,
         CancellationToken cancellationToken
     )
     {
-        var ocupados = await _agendamentos.PicoDeSimultaneosAsync(
+        var pico = await _agendamentos.PicoDeSimultaneosAsync(
             agendamento.Inicio,
             agendamento.Fim,
             cancellationToken
         );
 
-        if (ocupados >= MaximoDeServicosSimultaneos)
+        if (pico >= MaximoDeServicosSimultaneos)
         {
             throw new ConflitoException(
                 $"A oficina já tem {MaximoDeServicosSimultaneos} serviços nesse horário."

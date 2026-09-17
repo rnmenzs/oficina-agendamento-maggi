@@ -181,6 +181,8 @@ carregamento. Serve para revisar a interface sem depender de dados.
 
 **Só `Agendado` e `EmAndamento` ocupam vaga.** Cancelado e concluído não contam para capacidade nem para sobreposição. O mesmo critério está nos índices parciais, na constraint de exclusão e nas consultas.
 
+**Capacidade é pico, não contagem de janela.** A regra fala em três serviços *ao mesmo tempo*, então a pergunta que o banco responde é "qual o maior número de serviços simultâneos dentro deste período?" — e não "quantos cruzam este período". A diferença aparece com três serviços de trinta minutos em sequência: eles cruzam a janela de um de noventa sem nunca estarem juntos, e contá-los recusaria um horário que cabe. A consulta mede a lotação no início da janela e no início de cada agendamento dentro dela, porque o pico só muda quando alguém começa.
+
 **Sobreposição por veículo garantida por constraint de exclusão.** Se duas requisições passarem pela validação ao mesmo tempo, o banco recusa a segunda — proteção contra concorrência sem código nenhum. A capacidade de três simultâneos não cabe numa constraint declarativa e é checada na BLL.
 
 **Não sobrepor o mesmo veículo é checado na BLL e garantido pelo banco.** A checagem na camada de regras mantém a regra junto das outras e recusa antes de tentar gravar. Sozinha ela tem brecha: entre consultar e gravar cabe outra requisição, e as duas passariam pela consulta. A constraint de exclusão fecha essa janela, e é o único mecanismo aqui que resiste a requisições simultâneas.
