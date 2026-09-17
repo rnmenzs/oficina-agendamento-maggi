@@ -142,7 +142,7 @@ subir_banco() {
 
     # Os scripts numerados só rodam sozinhos quando o volume nasce vazio, e o healthcheck é por
     # TCP: "healthy" já significa que eles terminaram.
-    until [ "$(docker inspect -f '{{.State.Health.Status}}' oficina-db 2>/dev/null)" = "healthy" ]; do
+    until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(container_de db)" 2>/dev/null)" = "healthy" ]; do
         sleep 1
     done
 
@@ -185,7 +185,10 @@ parar_api() {
     docker compose stop api < /dev/null >/dev/null 2>&1 || true
 }
 
-api_viva() { [ "$(docker inspect -f '{{.State.Running}}' oficina-api 2>/dev/null)" = "true" ]; }
+# Pelo serviço do Compose, não pelo nome do container: o nome mora só no docker-compose.yml.
+container_de() { docker compose ps -q "$1" 2>/dev/null; }
+
+api_viva() { [ "$(docker inspect -f '{{.State.Running}}' "$(container_de api)" 2>/dev/null)" = "true" ]; }
 
 # ── Frontend ───────────────────────────────────────────────────────────
 subir_web() {
@@ -228,8 +231,8 @@ No ar:
   Swagger   $API_URL/swagger
   Catálogo  $WEB_URL/catalogo
 
-  Banco     container oficina-db (Docker)
-  API       container oficina-api (Docker)
+  Banco     container $(docker compose ps --format '{{.Name}}' db) (Docker)
+  API       container $(docker compose ps --format '{{.Name}}' api) (Docker)
   Frontend  vite nesta máquina, pid $WEB_PID
 
 Registro em .run/api.log e .run/web.log.
