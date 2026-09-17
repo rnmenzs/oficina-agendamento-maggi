@@ -29,7 +29,9 @@ export function AppointmentSlots({ slots, value, onChange }: AppointmentSlotsPro
         <div className="flex flex-col gap-2">
             <p className="text-xs text-muted">
                 {free} de {slots.length} horários livres. A oficina atende {AT_THE_SAME_TIME} serviços
-                ao mesmo tempo, e o número embaixo de cada horário é quantas vagas sobram.
+                ao mesmo tempo, e o número embaixo de cada horário é quantas vagas sobram{" "}
+                <strong className="font-semibold">durante todo o serviço</strong> — por isso ele muda
+                quando a duração muda.
             </p>
 
             <div
