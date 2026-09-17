@@ -4,12 +4,17 @@
  */
 export type FieldMentions<Field extends string> = readonly (readonly [RegExp, Field])[];
 
+/** O campo que a recusa cita, ou nada quando não é de campo nenhum. */
+export function fieldOf<Field extends string>(message: string, mentions: FieldMentions<Field>): Field | null {
+    return mentions.find(([mention]) => mention.test(message))?.[1] ?? null;
+}
+
 /** A recusa embaixo do campo que ela cita, ou nada quando não é de campo nenhum. */
 export function fieldErrorOf<Field extends string>(
     message: string,
     mentions: FieldMentions<Field>
 ): Partial<Record<Field, string>> | null {
-    const mentioned = mentions.find(([mention]) => mention.test(message));
+    const field = fieldOf(message, mentions);
 
-    return mentioned ? { [mentioned[1]]: message } as Partial<Record<Field, string>> : null;
+    return field ? { [field]: message } as Partial<Record<Field, string>> : null;
 }

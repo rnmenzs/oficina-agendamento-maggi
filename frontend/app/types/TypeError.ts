@@ -14,3 +14,8 @@ export type SubmitFailure = {
     message: string;
     field?: string;
 };
+
+/** O que um clientAction devolve: o que gravou, ou por que não gravou. */
+export type SubmitResult<T> =
+    | { saved: T }
+    | { failure: SubmitFailure };
