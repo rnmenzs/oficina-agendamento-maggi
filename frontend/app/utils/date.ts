@@ -64,6 +64,11 @@ export function toDay(date: Date): Day {
     return `${date.getFullYear()}-${month}-${dayOfMonth}`;
 }
 
+/** Dia que o resto do código pode usar sem conferir: veio da URL, que qualquer um edita. */
+export function isDay(value: string | null): value is Day {
+    return Boolean(value) && /^\d{4}-\d{2}-\d{2}$/.test(value!) && !Number.isNaN(fromDay(value!).getTime());
+}
+
 export function formatDay(day: Day): string {
     const [year, month, date] = day.split("-");
 

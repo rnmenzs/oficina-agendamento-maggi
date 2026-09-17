@@ -17,7 +17,7 @@ import { list as listClients } from "~/services/ServiceClient";
 import { listOfClient } from "~/services/ServiceVehicle";
 import { ApiError } from "~/services/ServiceHttp";
 import type { ServiceType } from "~/types/TypeAppointment";
-import { formatDayLong, instantOf, toDay } from "~/utils/date";
+import { formatDayLong, instantOf, isDay, toDay } from "~/utils/date";
 import { formatPhone } from "~/utils/phone";
 import { formatPlate } from "~/utils/plate";
 import { SERVICE_LABEL, SERVICE_MINUTES, SERVICE_TYPES } from "~/utils/service";
@@ -33,16 +33,26 @@ export function meta() {
     return [{ title: "Novo agendamento · Oficina Maggi" }];
 }
 
+// Some da lista quem já não existe; qualquer outra falha continua subindo para o ErrorBoundary.
+const missing = (error: unknown) => {
+    if (error instanceof ApiError && error.status === 404) return [];
+
+    throw error;
+};
+
 // O formulário mora na URL como o filtro da agenda: trocar cliente, serviço ou dia é o que traz
 // os veículos e a ocupação daquele dia, e recarregar não perde o que já foi preenchido.
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     const search = new URL(request.url).searchParams;
     const clientId = search.get("cliente") ?? "";
-    const day = search.get("dia") || nextOpenDay();
+
+    // Os dois vêm da URL: dia torto e cliente que não existe mais são endereço velho, não defeito.
+    // Sem esta guarda a tela cai no erro, e o "Tentar de novo" recarregaria no mesmo erro.
+    const day = isDay(search.get("dia")) ? search.get("dia")! : nextOpenDay();
 
     const [clients, vehicles, appointments] = await Promise.all([
         listClients(),
-        clientId ? listOfClient(clientId) : [],
+        clientId ? listOfClient(clientId).catch(missing) : [],
         isOpen(day) ? occupyingOn(day) : []
     ]);
 
