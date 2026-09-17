@@ -75,8 +75,10 @@ export function slotsOfDay(
             to: workshopMinutes(item.fim)
         }));
 
+    // Dia inteiro que já passou trava tudo; hoje trava até a hora atual; o futuro não trava nada.
+    // A URL é editável, então "ontem" chega aqui mesmo com o calendário só oferecendo daqui em diante.
     const [today, rightNow] = workshopParts(now);
-    const passedBy = day === today ? minutesOf(rightNow) : -1;
+    const passedBy = day < today ? Infinity : day === today ? minutesOf(rightNow) : -1;
 
     const slots: Slot[] = [];
 
