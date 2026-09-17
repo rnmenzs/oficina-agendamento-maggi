@@ -1,16 +1,18 @@
 import { useEffect } from "react";
 import { Form, useNavigate, useSearchParams, type ShouldRevalidateFunctionArgs } from "react-router";
 
-import { AppointmentSlots } from "~/components/appointment/AppointmentSlots";
+import { AppointmentSlots, AppointmentSlotsSkeleton } from "~/components/appointment/AppointmentSlots";
 import { Button } from "~/components/common/button/Button";
 import { Card } from "~/components/common/card/Card";
 import { StateError } from "~/components/common/state/StateError";
 import { FormDate } from "~/components/common/forms/FormDate/FormDate";
 import { FormSearch } from "~/components/common/forms/FormSearch/FormSearch";
 import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
+import { FormSkeleton } from "~/components/common/forms/FormSkeleton";
 import { PageBreadcrumb } from "~/components/common/page/PageBreadcrumb";
 import { PageHeader } from "~/components/common/page/PageHeader";
 import { useNotification } from "~/hooks/useNotification";
+import { useResolved } from "~/hooks/useResolved";
 import { create, occupyingOn } from "~/services/ServiceAppointment";
 import { list as listClients } from "~/services/ServiceClient";
 import { listOfClient } from "~/services/ServiceVehicle";
@@ -41,7 +43,8 @@ const missing = (error: unknown) => {
 
 // O formulário mora na URL como o filtro da agenda: trocar cliente, serviço ou dia é o que traz
 // os veículos e a ocupação daquele dia, e recarregar não perde o que já foi preenchido.
-export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+// As três buscas vão como promessa: o formulário pinta na hora, e cada campo espera só a sua.
+export function clientLoader({ request }: Route.ClientLoaderArgs) {
     const search = new URL(request.url).searchParams;
     const clientId = search.get("cliente") ?? "";
 
@@ -49,13 +52,12 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     // Sem esta guarda a tela cai no erro, e o "Tentar de novo" recarregaria no mesmo erro.
     const day = isDay(search.get("dia")) ? search.get("dia")! : nextOpenDay();
 
-    const [clients, vehicles, appointments] = await Promise.all([
-        listClients(),
-        clientId ? listOfClient(clientId).catch(missing) : [],
-        isOpen(day) ? occupyingOn(day) : []
-    ]);
-
-    return { clients, vehicles, day, appointments };
+    return {
+        clients: listClients(),
+        vehicles: clientId ? listOfClient(clientId).catch(missing) : Promise.resolve([]),
+        appointments: isOpen(day) ? occupyingOn(day) : Promise.resolve([]),
+        day
+    };
 }
 
 // Trocar serviço ou horário não muda nada do lado do servidor: as faixas são calculadas aqui, com
@@ -115,16 +117,24 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
 }
 
 export default function NewAppointment({ loaderData, actionData }: Route.ComponentProps) {
-    const { clients, vehicles, day, appointments } = loaderData;
+    const { day } = loaderData;
     const [search, setSearch] = useSearchParams();
     const { notify } = useNotification();
     const navigate = useNavigate();
 
+    const clientId = search.get("cliente") ?? "";
     const vehicleId = search.get("veiculo") ?? "";
     const time = search.get("hora") ?? "";
     const chosen = search.get("servico");
     const service = isServiceType(chosen) ? chosen : "TrocaOleo";
-    const slots = slotsOfDay(day, service, vehicleId, appointments);
+
+    // Trocar cliente ou dia rebusca as três listas, mas só a que mudou de assunto espera de novo:
+    // a frota é do cliente, a ocupação é do dia, e a lista de clientes é sempre a mesma — fica a
+    // que está até a nova chegar. Só na primeira vez cada campo espera.
+    const clients = useResolved(loaderData.clients);
+    const fleet = useResolved(loaderData.vehicles, clientId);
+    const occupying = useResolved(loaderData.appointments, day);
+    const slots = occupying && slotsOfDay(day, service, vehicleId, occupying);
 
     function change(fields: Record<string, string>) {
         const next = new URLSearchParams(search);
@@ -170,35 +180,43 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
             <Card>
                 <Form method="post" className="flex flex-col gap-5 p-5">
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <FormSearch
-                            label="Cliente"
-                            placeholder="Buscar por nome, e-mail ou telefone"
-                            emptyLabel="Nenhum cliente com esse termo"
-                            options={clients.map(client => ({
-                                value: client.id,
-                                label: client.nome,
-                                detail: formatPhone(client.telefone),
-                                terms: [client.email, client.telefone]
-                            }))}
-                            defaultValue={search.get("cliente") ?? ""}
-                            onChange={value => change({ cliente: value, veiculo: "", hora: "" })}
-                        />
+                        {clients
+                            ? (
+                                <FormSearch
+                                    label="Cliente"
+                                    placeholder="Buscar por nome, e-mail ou telefone"
+                                    emptyLabel="Nenhum cliente com esse termo"
+                                    options={clients.map(client => ({
+                                        value: client.id,
+                                        label: client.nome,
+                                        detail: formatPhone(client.telefone),
+                                        terms: [client.email, client.telefone]
+                                    }))}
+                                    defaultValue={clientId}
+                                    onChange={value => change({ cliente: value, veiculo: "", hora: "" })}
+                                />
+                            )
+                            : <FormSkeleton label="Cliente" />}
 
-                        <FormSelect
-                            label="Veículo"
-                            name="veiculoId"
-                            options={vehicles.map(vehicle => ({
-                                value: vehicle.id,
-                                label: `${formatPlate(vehicle.placa)} · ${vehicle.modelo} ${vehicle.ano}`
-                            }))}
-                            value={vehicleId}
-                            placeholder={vehicles.length ? "Escolher veículo" : "Escolha o cliente primeiro"}
-                            disabled={vehicles.length === 0}
-                            hint={search.get("cliente") && vehicles.length === 0
-                                ? "Este cliente não tem veículo cadastrado."
-                                : undefined}
-                            onChange={value => change({ veiculo: value, hora: "" })}
-                        />
+                        {fleet
+                            ? (
+                                <FormSelect
+                                    label="Veículo"
+                                    name="veiculoId"
+                                    options={fleet.map(vehicle => ({
+                                        value: vehicle.id,
+                                        label: `${formatPlate(vehicle.placa)} · ${vehicle.modelo} ${vehicle.ano}`
+                                    }))}
+                                    value={vehicleId}
+                                    placeholder={fleet.length ? "Escolher veículo" : "Escolha o cliente primeiro"}
+                                    disabled={fleet.length === 0}
+                                    hint={clientId && fleet.length === 0
+                                        ? "Este cliente não tem veículo cadastrado."
+                                        : undefined}
+                                    onChange={value => change({ veiculo: value, hora: "" })}
+                                />
+                            )
+                            : <FormSkeleton label="Veículo" />}
 
                         <FormSelect
                             label="Serviço"
@@ -223,19 +241,21 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
                             Horário
                         </legend>
 
-                        {slots.length === 0
-                            ? (
-                                <p className="text-sm text-muted">
-                                    A oficina não atende em {formatDayLong(day)}.
-                                </p>
-                            )
-                            : (
-                                <AppointmentSlots
-                                    slots={slots}
-                                    value={time}
-                                    onChange={value => change({ hora: value })}
-                                />
-                            )}
+                        {!slots
+                            ? <AppointmentSlotsSkeleton />
+                            : slots.length === 0
+                                ? (
+                                    <p className="text-sm text-muted">
+                                        A oficina não atende em {formatDayLong(day)}.
+                                    </p>
+                                )
+                                : (
+                                    <AppointmentSlots
+                                        slots={slots}
+                                        value={time}
+                                        onChange={value => change({ hora: value })}
+                                    />
+                                )}
                     </fieldset>
 
                     <input type="hidden" name="hora" value={time} />

@@ -1,4 +1,7 @@
-import { isRouteErrorResponse, useRevalidator, useRouteError, useSearchParams } from "react-router";
+import { Suspense, useState } from "react";
+import {
+    Await, isRouteErrorResponse, useLocation, useRevalidator, useRouteError, useSearchParams
+} from "react-router";
 
 import { ClientAppointmentTable } from "~/components/client/ClientAppointmentTable";
 import { ClientVehicleTable } from "~/components/client/ClientVehicleTable";
@@ -8,15 +11,18 @@ import { Card } from "~/components/common/card/Card";
 import { DataList } from "~/components/common/page/DataList";
 import { PageBreadcrumb } from "~/components/common/page/PageBreadcrumb";
 import { PageHeader } from "~/components/common/page/PageHeader";
+import { Skeleton } from "~/components/common/skeleton/Skeleton";
+import { SkeletonPagination } from "~/components/common/skeleton/SkeletonPagination";
 import { StateEmpty } from "~/components/common/state/StateEmpty";
 import { TablePagination } from "~/components/common/table/TablePagination";
 import { useModal } from "~/hooks/useModal";
 import { useNotification } from "~/hooks/useNotification";
-import { useState } from "react";
+import { useResolved } from "~/hooks/useResolved";
 import { listOfClient as appointmentsOf } from "~/services/ServiceAppointment";
 import { get } from "~/services/ServiceClient";
 import { ApiError } from "~/services/ServiceHttp";
 import { create as createVehicle, listOfClient as vehiclesOf } from "~/services/ServiceVehicle";
+import type { AppointmentResponse } from "~/types/TypeAppointment";
 import type { ClientResponse } from "~/types/TypeClient";
 import type { CreateVehicleRequest, VehicleResponse } from "~/types/TypeVehicle";
 import { dayOf, formatDay } from "~/utils/date";
@@ -37,12 +43,12 @@ export async function clientLoader({ params, request }: Route.ClientLoaderArgs) 
     // o que passar do fim.
     const page = Math.max(1, Number(new URL(request.url).searchParams.get("pagina")) || 1);
 
-    // As três chamadas são independentes, então saem juntas: em série, a tela esperaria a soma.
-    const [client, vehicles, appointments] = await Promise.all([
-        get(params.id),
-        vehiclesOf(params.id),
-        appointmentsOf(params.id, page, PAGE_SIZE)
-    ]);
+    // As três chamadas saem juntas, mas só o cliente é esperado: sem ele não há nem título — e um
+    // id que não existe tem que cair no 404 antes de qualquer coisa pintar. Veículos e histórico
+    // vão como promessa, e cada bloco da tela aguarda o seu.
+    const vehicles = vehiclesOf(params.id);
+    const appointments = appointmentsOf(params.id, page, PAGE_SIZE);
+    const client = await get(params.id);
 
     return { client, vehicles, appointments, page };
 }
@@ -70,9 +76,17 @@ export function ErrorBoundary() {
 export default function Client({ loaderData }: Route.ComponentProps) {
     const { client, vehicles, appointments, page } = loaderData;
     const [search, setSearch] = useSearchParams();
+    const location = useLocation();
     const { open } = useModal();
     const { notify } = useNotification();
     const revalidator = useRevalidator();
+
+    const linkTo = (appointment: AppointmentResponse) => `/agendamentos/${appointment.id}`;
+
+    // Ao paginar, a frota e as contagens recebem promessas novas mas não têm por que piscar: ficam
+    // com o que tinham até a resposta chegar. Só o histórico suspende — e só ele vira esqueleto.
+    const fleet = useResolved(vehicles);
+    const known = useResolved(appointments);
 
     // Cadastrar veículo não muda de tela: o que mudou está logo abaixo, e é só relê-lo.
     async function addVehicle() {
@@ -97,6 +111,9 @@ export default function Client({ loaderData }: Route.ComponentProps) {
         setSearch(params, { preventScrollReset: true });
     }
 
+    // Um número pequeno esperando: a barra tem o tamanho do número, para o nome ao lado não pular.
+    const counting = <Skeleton className="mt-1 h-4 w-6" />;
+
     return (
         <>
             <PageBreadcrumb trail={[{ label: "Clientes", to: "/clientes" }, { label: client.nome }]} />
@@ -119,10 +136,13 @@ export default function Client({ loaderData }: Route.ComponentProps) {
                             value: <span className="font-mono">{formatPhone(client.telefone)}</span>
                         },
                         { label: "E-mail", value: client.email },
-                        { label: "Veículos", value: <span className="font-mono">{vehicles.length}</span> },
+                        {
+                            label: "Veículos",
+                            value: fleet ? <span className="font-mono">{fleet.length}</span> : counting
+                        },
                         {
                             label: "Agendamentos",
-                            value: <span className="font-mono">{appointments.total}</span>
+                            value: known ? <span className="font-mono">{known.total}</span> : counting
                         }
                     ]}
                 />
@@ -131,49 +151,62 @@ export default function Client({ loaderData }: Route.ComponentProps) {
             <h2 className={SECTION}>Veículos</h2>
 
             <Card>
-                {vehicles.length
-                    ? <ClientVehicleTable vehicles={vehicles} />
-                    : (
-                        <StateEmpty
-                            title="Nenhum veículo cadastrado"
-                            description="Sem veículo não há o que agendar. Cadastre o primeiro."
-                        >
-                            <Button variant="primary" onClick={addVehicle}>Adicionar veículo</Button>
-                        </StateEmpty>
-                    )}
+                {!fleet
+                    ? <ClientVehicleTable vehicles={[]} loading />
+                    : fleet.length
+                        ? <ClientVehicleTable vehicles={fleet} />
+                        : (
+                            <StateEmpty
+                                title="Nenhum veículo cadastrado"
+                                description="Sem veículo não há o que agendar. Cadastre o primeiro."
+                            >
+                                <Button variant="primary" onClick={addVehicle}>Adicionar veículo</Button>
+                            </StateEmpty>
+                        )}
             </Card>
 
             <h2 className={SECTION}>Agendamentos</h2>
 
+            {/* A chave é a URL: mudar de página remonta a fronteira e o esqueleto aparece. Reler a
+                mesma URL depois de cadastrar um veículo não remonta, e a tabela fica até a nova chegar. */}
             <Card>
-                {appointments.total
-                    ? (
+                <Suspense
+                    key={location.search}
+                    fallback={
                         <>
-                            <ClientAppointmentTable
-                                appointments={appointments.itens}
-                                linkTo={appointment => `/agendamentos/${appointment.id}`}
-                            />
-
-                            <TablePagination
-                                page={page}
-                                pageSize={PAGE_SIZE}
-                                total={appointments.total}
-                                unit="agendamentos"
-                                controls={appointments.totalDePaginas > 1}
-                                onChange={goToPage}
-                            />
+                            <ClientAppointmentTable appointments={[]} loading linkTo={linkTo} />
+                            <SkeletonPagination />
                         </>
-                    )
-                    : (
-                        <StateEmpty
-                            title="Nenhum agendamento ainda"
-                            description="Quando este cliente marcar um serviço, ele aparece aqui."
-                        >
-                            <Button to={`/agendamentos/novo?cliente=${client.id}`} variant="primary">
-                                Novo agendamento
-                            </Button>
-                        </StateEmpty>
-                    )}
+                    }
+                >
+                    <Await resolve={appointments}>
+                        {history => history.total
+                            ? (
+                                <>
+                                    <ClientAppointmentTable appointments={history.itens} linkTo={linkTo} />
+
+                                    <TablePagination
+                                        page={page}
+                                        pageSize={PAGE_SIZE}
+                                        total={history.total}
+                                        unit="agendamentos"
+                                        controls={history.totalDePaginas > 1}
+                                        onChange={goToPage}
+                                    />
+                                </>
+                            )
+                            : (
+                                <StateEmpty
+                                    title="Nenhum agendamento ainda"
+                                    description="Quando este cliente marcar um serviço, ele aparece aqui."
+                                >
+                                    <Button to={`/agendamentos/novo?cliente=${client.id}`} variant="primary">
+                                        Novo agendamento
+                                    </Button>
+                                </StateEmpty>
+                            )}
+                    </Await>
+                </Suspense>
             </Card>
         </>
     );
