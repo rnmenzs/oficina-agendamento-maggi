@@ -1,12 +1,10 @@
 import { Check, Play, X, type LucideIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { useRevalidator } from "react-router";
+import { useEffect, type ReactNode } from "react";
+import { useFetcher } from "react-router";
 
 import type { IconTone } from "~/components/common/button/ButtonIcon";
-import { ApiError } from "~/services/ServiceHttp";
-import { changeStatus } from "~/services/ServiceAppointment";
 import type { AppointmentResponse, AppointmentStatus } from "~/types/TypeAppointment";
-import type { Id } from "~/types/TypeCommon";
+import type { SubmitResult } from "~/types/TypeError";
 import { appointmentSummary } from "~/utils/appointment";
 import { formatPlate } from "~/utils/plate";
 import { allowedTransitions, STATUS_LABEL } from "~/utils/status";
@@ -54,8 +52,9 @@ export function actionsFor(status: AppointmentStatus): readonly StatusAction[] {
 }
 
 /**
- * Confirmar, mandar para a API, avisar e recarregar o que está na tela. A recusa da API vira o
- * aviso de erro: quem decide se a transição vale é o backend, e a mensagem dele já vem pronta.
+ * Confirmar, submeter ao clientAction do agendamento e avisar. A recusa da API vira o aviso de
+ * erro: quem decide se a transição vale é o backend, e a mensagem dele já vem pronta. Recarregar
+ * o que está na tela é o roteador que faz, depois de toda ação.
  */
 type UseStatusActions = {
     /** Como a confirmação mostra o agendamento. Desenhar é da tela; o padrão é uma linha de texto. */
@@ -65,8 +64,20 @@ type UseStatusActions = {
 export function useStatusActions({ summaryOf = appointmentSummary }: UseStatusActions = {}) {
     const { confirm } = useModal();
     const { notify } = useNotification();
-    const revalidator = useRevalidator();
-    const [pending, setPending] = useState<Id | null>(null);
+    const fetcher = useFetcher<SubmitResult<AppointmentResponse>>();
+
+    // A resposta chega depois, pelo fetcher: um aviso por envio.
+    useEffect(() => {
+        const result = fetcher.data;
+
+        if (!result) return;
+
+        if ("saved" in result) {
+            notify(`${formatPlate(result.saved.placa)} agora está ${STATUS_LABEL[result.saved.status].toLowerCase()}.`);
+        } else {
+            notify(result.failure.message, "error");
+        }
+    }, [fetcher.data, notify]);
 
     async function change(appointment: AppointmentResponse, to: AppointmentStatus) {
         const action = ACTIONS[to];
@@ -82,27 +93,15 @@ export function useStatusActions({ summaryOf = appointmentSummary }: UseStatusAc
 
         if (!confirmed) return;
 
-        setPending(appointment.id);
-
-        try {
-            const saved = await changeStatus(appointment.id, to);
-
-            notify(`${formatPlate(saved.placa)} agora está ${STATUS_LABEL[saved.status].toLowerCase()}.`);
-            revalidator.revalidate();
-        } catch (error) {
-            const message = error instanceof ApiError
-                ? error.message
-                : "Não foi possível mudar o status.";
-
-            notify(message, "error");
-        } finally {
-            setPending(null);
-        }
+        fetcher.submit(
+            { status: to },
+            { method: "patch", action: `/agendamentos/${appointment.id}`, encType: "application/json" }
+        );
     }
 
     // Entre a troca e a lista recarregada, a tela mostra o status velho — e com ele as ações
     // velhas. Clicar ali manda uma transição que o banco já não permite, e a resposta é uma recusa
     // que parece defeito ("não é possível mudar de EmAndamento para Cancelado"). As ações ficam
-    // travadas até a lista chegar.
-    return { change, busy: pending !== null || revalidator.state === "loading" };
+    // travadas até a lista chegar: o fetcher só volta a idle depois da releitura.
+    return { change, busy: fetcher.state !== "idle" };
 }

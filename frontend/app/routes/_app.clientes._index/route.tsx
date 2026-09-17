@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
-import { Suspense, useState } from "react";
-import { Await, useNavigate, useSearchParams, type ShouldRevalidateFunctionArgs } from "react-router";
+import { Suspense, useEffect } from "react";
+import { Await, useFetcher, useNavigate, useSearchParams, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import { ClientForm, CLIENT_FIELDS, type ClientFieldErrors } from "~/components/client/ClientForm";
 import { ClientTable } from "~/components/client/ClientTable";
@@ -17,9 +17,11 @@ import { list as listVehicles } from "~/services/ServiceVehicle";
 import { ApiError } from "~/services/ServiceHttp";
 import type { ClientResponse, CreateClientRequest } from "~/types/TypeClient";
 import type { Id } from "~/types/TypeCommon";
-import { fieldErrorOf } from "~/utils/fieldError";
+import type { SubmitResult } from "~/types/TypeError";
+import { fieldOf } from "~/utils/fieldError";
 import { normalizePhone } from "~/utils/phone";
 import { deferred } from "~/utils/promise";
+import { unlessRefused } from "~/utils/revalidate";
 import type { Route } from "./+types/route";
 
 export function meta() {
@@ -60,6 +62,21 @@ export function clientLoader() {
     return { base: deferred(loadBase()) };
 }
 
+// O cadastro entra por aqui, como todo envio: a rota é quem fala com o service, e a releitura da
+// lista depois de gravar vem de graça. A recusa volta com o campo que ela cita, para a janela pôr
+// o erro embaixo dele; sem campo, é aviso.
+export async function clientAction({ request }: Route.ClientActionArgs): Promise<SubmitResult<ClientResponse>> {
+    const client: CreateClientRequest = await request.json();
+
+    try {
+        return { saved: await create(client) };
+    } catch (error) {
+        const message = error instanceof ApiError ? error.message : "Não foi possível cadastrar.";
+
+        return { failure: { message, field: fieldOf(message, CLIENT_FIELDS) ?? undefined } };
+    }
+}
+
 export function ErrorBoundary() {
     return (
         <Card>
@@ -72,9 +89,12 @@ export function ErrorBoundary() {
 
 // A busca é feita aqui, sobre o que já veio: mudar só o `?busca=` não tem por que refazer as duas
 // chamadas — a resposta seria a mesma, e a tabela piscaria à toa.
-export function shouldRevalidate({ currentUrl, nextUrl, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) {
-    // Mesma URL dos dois lados é releitura pedida de propósito, e não busca: passa.
-    if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+export function shouldRevalidate(args: ShouldRevalidateFunctionArgs) {
+    const { currentUrl, nextUrl, defaultShouldRevalidate } = args;
+
+    // Mesma URL dos dois lados é releitura pedida de propósito, e não busca: passa — menos
+    // quando o que a pediu foi uma recusa.
+    if (currentUrl.href === nextUrl.href) return unlessRefused(args);
 
     const onlyTheSearchChanged = currentUrl.pathname === nextUrl.pathname
         && [...nextUrl.searchParams.keys(), ...currentUrl.searchParams.keys()]
@@ -201,32 +221,32 @@ export default function Clients({ loaderData }: Route.ComponentProps) {
 }
 
 // O envio vive aqui dentro para a janela poder mostrar a recusa da API sem fechar: quem fecha é a
-// resposta boa, e é ela que a promessa devolve.
+// resposta boa, e é ela que a promessa devolve. O fetcher leva ao clientAction desta rota e traz a
+// resposta de volta em `data`, uma por envio.
+// A `action` é explícita porque a janela é desenhada pelo ModalProvider, na raiz, fora da árvore
+// desta rota: sem ela o fetcher submeteria para "/", que não tem ação — 405 na tela inteira.
 function ClientCreation({ onDone }: { onDone: (client?: ClientResponse) => void }) {
+    const fetcher = useFetcher<typeof clientAction>();
     const { notify } = useNotification();
-    const [sending, setSending] = useState(false);
-    const [errors, setErrors] = useState<ClientFieldErrors>({});
+    const result = fetcher.data;
+    const failure = result && "failure" in result ? result.failure : null;
+    const errors: ClientFieldErrors = failure?.field ? { [failure.field]: failure.message } : {};
 
-    async function submit(client: CreateClientRequest) {
-        setSending(true);
-        setErrors({});
+    useEffect(() => {
+        if (!result) return;
 
-        try {
-            onDone(await create(client));
-        } catch (failure) {
-            setSending(false);
+        if ("saved" in result) onDone(result.saved);
+        else if (!result.failure.field) notify(result.failure.message, "error");
+    }, [result, onDone, notify]);
 
-            const message = failure instanceof ApiError
-                ? failure.message
-                : "Não foi possível cadastrar.";
-
-            // Recusa de campo volta para o campo; o que não é de campo nenhum vira aviso, que é o
-            // canal de quem precisa saber que o envio não passou.
-            const field = fieldErrorOf(message, CLIENT_FIELDS);
-
-            if (field) setErrors(field); else notify(message, "error");
-        }
-    }
-
-    return <ClientForm errors={errors} sending={sending} onCancel={() => onDone()} onSubmit={submit} />;
+    return (
+        <ClientForm
+            errors={errors}
+            sending={fetcher.state !== "idle"}
+            onCancel={() => onDone()}
+            onSubmit={client => fetcher.submit(client, {
+                method: "post", action: "/clientes", encType: "application/json"
+            })}
+        />
+    );
 }
