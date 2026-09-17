@@ -68,6 +68,8 @@ public sealed class AgendamentosController : ControllerBase
         [FromQuery] DateOnly? dataInicio = null,
         [FromQuery] DateOnly? dataFim = null,
         [FromQuery] string? status = null,
+        [FromQuery] Guid? clienteId = null,
+        [FromQuery] string? ordem = null,
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanhoDaPagina = 20
     )
@@ -76,6 +78,8 @@ public sealed class AgendamentosController : ControllerBase
             dataInicio,
             dataFim,
             status,
+            clienteId,
+            ordem,
             pagina,
             tamanhoDaPagina,
             cancellationToken
