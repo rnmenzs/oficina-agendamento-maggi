@@ -70,8 +70,8 @@ public sealed class BancoDeTeste : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        // FORCE derruba as conexões que a API ainda tiver no pool; sem ele o DROP esperaria por elas.
-        NpgsqlConnection.ClearAllPools();
+        // FORCE derruba qualquer conexão que ainda esteja aberta no banco; sem ele o DROP esperaria
+        // por ela. Não há pool a limpar: a connection string de teste é Pooling=false.
         await ExecutarNoServidorAsync($"DROP DATABASE IF EXISTS \"{Nome}\" WITH (FORCE)");
     }
 
