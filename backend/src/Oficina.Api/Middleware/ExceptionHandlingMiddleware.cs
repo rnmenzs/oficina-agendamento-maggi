@@ -80,8 +80,14 @@ public sealed class ExceptionHandlingMiddleware
         var problema = fabrica.CreateProblemDetails(contexto, status, titulo, detail: detalhe);
 
         contexto.Response.StatusCode = status;
-        contexto.Response.ContentType = "application/problem+json";
 
-        await contexto.Response.WriteAsJsonAsync(problema);
+        // O tipo vai na própria escrita: WriteAsJsonAsync sem ele sobrescreve o ContentType da
+        // resposta com application/json — e as recusas saíam com o tipo errado desde o início.
+        await contexto.Response.WriteAsJsonAsync(
+            problema,
+            options: null,
+            contentType: "application/problem+json",
+            cancellationToken: contexto.RequestAborted
+        );
     }
 }

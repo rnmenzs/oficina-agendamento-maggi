@@ -68,8 +68,10 @@ export function toDay(date: Date): Day {
  * Hoje para a oficina, e não para o relógio de quem abre a tela. Num fuso adiantado, o "hoje" do
  * navegador já é amanhã lá — e um calendário com `min` nesse dia barraria o dia que ainda vale.
  */
-export function today(): Day {
-    return workshopParts(new Date())[0];
+// O instante entra como parâmetro, como em slotsOfDay e nextOpenDay: a leitura do relógio fica
+// visível na assinatura, e um teste passa a data que quiser.
+export function today(now = new Date()): Day {
+    return workshopParts(now)[0];
 }
 
 /** Dia que o resto do código pode usar sem conferir: veio da URL, que qualquer um edita. */
