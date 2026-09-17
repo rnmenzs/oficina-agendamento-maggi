@@ -69,6 +69,15 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
                 >
                     <Button to="/agendamentos" variant="primary">Ir para a agenda</Button>
                 </StateEmpty>
+
+                {/* Em desenvolvimento o erro cru vai junto: a frase é para quem usa, o stack é para
+                    quem conserta. Fora de desenvolvimento, só a frase. */}
+                {import.meta.env.DEV && error instanceof Error && (
+                    <pre className="max-h-72 overflow-auto border-t border-line px-5 py-4 font-mono text-xs
+                        whitespace-pre-wrap text-muted">
+                        {error.stack ?? error.message}
+                    </pre>
+                )}
             </Card>
         </main>
     );
