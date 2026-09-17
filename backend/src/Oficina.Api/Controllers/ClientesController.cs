@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.BLL.Clientes;
 using Oficina.DTO.Clientes;
 
 namespace Oficina.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/clientes")]
 public sealed class ClientesController : ControllerBase

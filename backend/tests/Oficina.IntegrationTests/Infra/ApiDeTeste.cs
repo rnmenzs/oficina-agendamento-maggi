@@ -1,5 +1,9 @@
 using System.Net.Http.Json;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Oficina.DTO.Agendamentos;
 using Oficina.DTO.Clientes;
 using Oficina.DTO.Veiculos;
@@ -16,6 +20,24 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
     private string? _conexaoOriginal;
 
     public HttpClient Cliente { get; private set; } = null!;
+
+    // Os endpoints agora exigem [Authorize]. Em vez de gerar um JWT real para cada teste,
+    // substituímos o esquema de autenticação por um que aceita tudo — o que se testa aqui é a
+    // lógica da API, não o middleware de JWT.
+    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    {
+        builder.ConfigureServices(services =>
+        {
+            services.AddAuthentication("Test")
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
+
+            services.PostConfigure<AuthenticationOptions>(options =>
+            {
+                options.DefaultAuthenticateScheme = "Test";
+                options.DefaultChallengeScheme = "Test";
+            });
+        });
+    }
 
     public async Task InitializeAsync()
     {
@@ -130,5 +152,26 @@ public static class Dia
         var dia = segunda.AddDays(indice / 5 * 7 + indice % 5);
 
         return new DateTimeOffset(dia.Year, dia.Month, dia.Day, hora, minuto, 0, FusoDaOficina);
+    }
+}
+
+// Handler de autenticação que aceita qualquer requisição: os testes de integração provam a lógica
+// da API, não o middleware de JWT. O esquema é registrado no ConfigureWebHost do ApiDeTeste.
+public sealed class TestAuthHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    Microsoft.Extensions.Logging.ILoggerFactory logger,
+    System.Text.Encodings.Web.UrlEncoder encoder
+) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var identity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.Name, "test")],
+            "Test"
+        );
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, "Test");
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }
