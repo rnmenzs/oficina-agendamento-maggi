@@ -1,7 +1,8 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 export type Crumb = {
-    label: string;
+    label: ReactNode;
     to?: string;
 };
 
@@ -14,7 +15,7 @@ export function PageBreadcrumb({ trail }: { trail: readonly Crumb[] }) {
         <nav aria-label="Trilha">
             <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
                 {trail.map((crumb, at) => (
-                    <li key={crumb.label} className="flex items-center gap-1.5">
+                    <li key={at} className="flex items-center gap-1.5">
                         {at > 0 && <span aria-hidden className="text-line-strong">/</span>}
                         {crumb.to
                             ? <Link to={crumb.to} className="text-primary no-underline hover:underline">{crumb.label}</Link>

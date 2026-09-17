@@ -3,22 +3,26 @@ import type { ReactNode } from "react";
 type SkeletonProps = {
     className?: string;
     label?: string;
+    /** `span` para caber onde só cabe texto: dentro de um título, de um parágrafo. */
+    as?: "div" | "span";
     children?: ReactNode;
 };
 
-export function Skeleton({ className = "h-3 w-full", label, children }: SkeletonProps) {
+// Sem filhos é uma barra; com filhos é o invólucro de um conjunto delas, e é ele que avisa o leitor
+// de tela — uma vez, e não uma por barra.
+export function Skeleton({ className = "h-3 w-full", label, as: Tag = "div", children }: SkeletonProps) {
     const round = className.includes("rounded") ? "" : "rounded-sm";
 
     return (
-        <div
+        <Tag
             aria-hidden={label ? undefined : true}
             aria-busy={label ? true : undefined}
             aria-live={label ? "polite" : undefined}
-            className={`animate-pulse motion-reduce:animate-none ${round}
-                ${children ? "" : "bg-line"} ${className}`}
+            className={`${Tag === "span" ? "inline-block align-middle" : ""}
+                ${children ? "" : `skeleton ${round}`} ${className}`}
         >
             {label && <span className="sr-only">{label}</span>}
             {children}
-        </div>
+        </Tag>
     );
 }

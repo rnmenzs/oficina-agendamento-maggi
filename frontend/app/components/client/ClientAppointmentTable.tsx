@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { BadgePlate } from "../common/badge/BadgePlate";
 import { BadgeStatus } from "../common/badge/BadgeStatus";
 import { ButtonIcon } from "../common/button/ButtonIcon";
+import { SkeletonRows } from "../common/skeleton/SkeletonRows";
 import { Table, type TableColumn } from "../common/table/Table";
 import { TableCell } from "../common/table/TableCell";
 import { TableRow } from "../common/table/TableRow";
@@ -24,15 +25,19 @@ const COLUMNS: readonly TableColumn[] = [
 
 type ClientAppointmentTableProps = {
     appointments: readonly AppointmentResponse[];
+    /** As linhas ainda não chegaram: o cabeçalho fica e o corpo vira esqueleto. */
+    loading?: boolean;
     /** Para onde a linha leva. Quem conhece as rotas do sistema é a tela. */
     linkTo: (appointment: AppointmentResponse) => string;
     onOpen?: (appointment: AppointmentResponse) => void;
 };
 
-export function ClientAppointmentTable({ appointments, linkTo, onOpen }: ClientAppointmentTableProps) {
+export function ClientAppointmentTable({
+    appointments, loading = false, linkTo, onOpen
+}: ClientAppointmentTableProps) {
     return (
-        <Table columns={COLUMNS}>
-            {appointments.map(appointment => {
+        <Table columns={COLUMNS} busy={loading}>
+            {loading ? <SkeletonRows columns={COLUMNS.length} /> : appointments.map(appointment => {
                 const day = dayOf(appointment.inicio);
 
                 return (

@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 
 import { ButtonIcon } from "../common/button/ButtonIcon";
+import { SkeletonRows } from "../common/skeleton/SkeletonRows";
 import { Table, type TableColumn } from "../common/table/Table";
 import { TableCell } from "../common/table/TableCell";
 import { TableRow } from "../common/table/TableRow";
@@ -20,6 +21,8 @@ const COLUMNS: readonly TableColumn[] = [
 
 type ClientTableProps = {
     clients: readonly ClientResponse[];
+    /** As linhas ainda não chegaram: o cabeçalho fica e o corpo vira esqueleto. */
+    loading?: boolean;
     /** Quantos veículos cada cliente tem. A listagem da API não traz, então quem conta é a tela. */
     vehicleCount: (client: ClientResponse) => number;
     /** Para onde a linha leva. Quem conhece as rotas do sistema é a tela. */
@@ -27,10 +30,10 @@ type ClientTableProps = {
     onOpen?: (client: ClientResponse) => void;
 };
 
-export function ClientTable({ clients, vehicleCount, linkTo, onOpen }: ClientTableProps) {
+export function ClientTable({ clients, loading = false, vehicleCount, linkTo, onOpen }: ClientTableProps) {
     return (
-        <Table columns={COLUMNS}>
-            {clients.map(client => (
+        <Table columns={COLUMNS} busy={loading}>
+            {loading ? <SkeletonRows columns={COLUMNS.length} /> : clients.map(client => (
                 <TableRow key={client.id} onOpen={onOpen && (() => onOpen(client))}>
                     <TableCell>
                         <span className="font-semibold whitespace-nowrap">{client.nome}</span>

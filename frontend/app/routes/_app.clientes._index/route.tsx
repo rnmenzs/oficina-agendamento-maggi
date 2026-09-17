@@ -1,12 +1,13 @@
 import { Search } from "lucide-react";
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Suspense, useState } from "react";
+import { Await, useNavigate, useSearchParams, type ShouldRevalidateFunctionArgs } from "react-router";
 
 import { ClientForm, CLIENT_FIELDS, type ClientFieldErrors } from "~/components/client/ClientForm";
 import { ClientTable } from "~/components/client/ClientTable";
 import { Button } from "~/components/common/button/Button";
 import { Card } from "~/components/common/card/Card";
 import { FormText } from "~/components/common/forms/FormText";
+import { Skeleton } from "~/components/common/skeleton/Skeleton";
 import { StateEmpty } from "~/components/common/state/StateEmpty";
 import { StateError } from "~/components/common/state/StateError";
 import { useModal } from "~/hooks/useModal";
@@ -18,6 +19,7 @@ import type { ClientResponse, CreateClientRequest } from "~/types/TypeClient";
 import type { Id } from "~/types/TypeCommon";
 import { fieldErrorOf } from "~/utils/fieldError";
 import { normalizePhone } from "~/utils/phone";
+import { deferred } from "~/utils/promise";
 import type { Route } from "./+types/route";
 
 export function meta() {
@@ -34,9 +36,14 @@ function matches(client: ClientResponse, term: string): boolean {
         || (digits.length > 0 && client.telefone.includes(digits));
 }
 
+type Base = {
+    clients: ClientResponse[];
+    counts: Record<Id, number>;
+};
+
 // A contagem de veículos não vem junto do cliente, então a frota inteira vem numa chamada só e a
 // conta é feita aqui — uma consulta por linha da lista seria pior.
-export async function clientLoader() {
+async function loadBase(): Promise<Base> {
     const [clients, vehicles] = await Promise.all([listClients(), listVehicles()]);
 
     const counts: Record<Id, number> = {};
@@ -46,6 +53,11 @@ export async function clientLoader() {
     }
 
     return { clients, counts };
+}
+
+// A promessa vai sem esperar: cabeçalho, busca e botão pintam na hora, e só a tabela aguarda.
+export function clientLoader() {
+    return { base: deferred(loadBase()) };
 }
 
 export function ErrorBoundary() {
@@ -58,15 +70,29 @@ export function ErrorBoundary() {
     );
 }
 
+// A busca é feita aqui, sobre o que já veio: mudar só o `?busca=` não tem por que refazer as duas
+// chamadas — a resposta seria a mesma, e a tabela piscaria à toa.
+export function shouldRevalidate({ currentUrl, nextUrl, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) {
+    // Mesma URL dos dois lados é releitura pedida de propósito, e não busca: passa.
+    if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+
+    const onlyTheSearchChanged = currentUrl.pathname === nextUrl.pathname
+        && [...nextUrl.searchParams.keys(), ...currentUrl.searchParams.keys()]
+            .every(key => key === "busca");
+
+    return onlyTheSearchChanged ? false : defaultShouldRevalidate;
+}
+
 export default function Clients({ loaderData }: Route.ComponentProps) {
-    const { clients, counts } = loaderData;
     const [search, setSearch] = useSearchParams();
     const { open } = useModal();
     const { notify } = useNotification();
     const navigate = useNavigate();
 
     const term = (search.get("busca") ?? "").trim();
-    const found = term ? clients.filter(client => matches(client, term)) : clients;
+    const findIn = (clients: readonly ClientResponse[]) =>
+        term ? clients.filter(client => matches(client, term)) : clients;
+    const linkTo = (client: ClientResponse) => `/clientes/${client.id}`;
 
     function searchFor(value: string) {
         const next = new URLSearchParams(search);
@@ -95,11 +121,21 @@ export default function Clients({ loaderData }: Route.ComponentProps) {
             <header className="flex flex-wrap items-end justify-between gap-4">
                 <div className="min-w-0">
                     <h1 className="text-2xl font-semibold tracking-tight text-balance">Clientes</h1>
-                    <p className="mt-0.5 text-sm text-muted">
+                    <div className="mt-0.5 text-sm text-muted">
                         {term
-                            ? `${found.length} ${found.length === 1 ? "resultado" : "resultados"} para "${term}"`
+                            ? (
+                                <Suspense fallback={<Skeleton className="mt-1 h-3 w-40" />}>
+                                    <Await resolve={loaderData.base}>
+                                        {({ clients }) => {
+                                            const found = findIn(clients);
+
+                                            return `${found.length} ${found.length === 1 ? "resultado" : "resultados"} para "${term}"`;
+                                        }}
+                                    </Await>
+                                </Suspense>
+                            )
                             : "Quem tem veículo atendido nesta unidade."}
-                    </p>
+                    </div>
                 </div>
 
                 <Button variant="primary" onClick={register}>Novo cliente</Button>
@@ -131,26 +167,34 @@ export default function Clients({ loaderData }: Route.ComponentProps) {
             </Card>
 
             <Card>
-                {found.length === 0
-                    ? (
-                        <StateEmpty
-                            title="Nenhum cliente encontrado"
-                            description={term
-                                ? `Ninguém com "${term}" no nome, no e-mail ou no telefone.`
-                                : "Ninguém cadastrado ainda. O primeiro cliente começa aqui."}
-                        >
-                            {term && <Button onClick={() => searchFor("")}>Ver todos</Button>}
-                            <Button variant="primary" onClick={register}>Cadastrar cliente</Button>
-                        </StateEmpty>
-                    )
-                    : (
-                        <ClientTable
-                            clients={found}
-                            vehicleCount={client => counts[client.id] ?? 0}
-                            linkTo={client => `/clientes/${client.id}`}
-                            onOpen={client => navigate(`/clientes/${client.id}`)}
-                        />
-                    )}
+                <Suspense fallback={<ClientTable clients={[]} loading vehicleCount={() => 0} linkTo={linkTo} />}>
+                    <Await resolve={loaderData.base}>
+                        {({ clients, counts }) => {
+                            const found = findIn(clients);
+
+                            return found.length === 0
+                                ? (
+                                    <StateEmpty
+                                        title="Nenhum cliente encontrado"
+                                        description={term
+                                            ? `Ninguém com "${term}" no nome, no e-mail ou no telefone.`
+                                            : "Ninguém cadastrado ainda. O primeiro cliente começa aqui."}
+                                    >
+                                        {term && <Button onClick={() => searchFor("")}>Ver todos</Button>}
+                                        <Button variant="primary" onClick={register}>Cadastrar cliente</Button>
+                                    </StateEmpty>
+                                )
+                                : (
+                                    <ClientTable
+                                        clients={found}
+                                        vehicleCount={client => counts[client.id] ?? 0}
+                                        linkTo={linkTo}
+                                        onOpen={client => navigate(linkTo(client))}
+                                    />
+                                );
+                        }}
+                    </Await>
+                </Suspense>
             </Card>
         </>
     );

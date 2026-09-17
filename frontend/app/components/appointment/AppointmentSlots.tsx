@@ -1,3 +1,4 @@
+import { Skeleton } from "../common/skeleton/Skeleton";
 import { AT_THE_SAME_TIME, type Slot } from "~/utils/schedule";
 
 const BASE = `
@@ -17,6 +18,22 @@ type AppointmentSlotsProps = {
     value: string;
     onChange: (time: string) => void;
 };
+
+// Um dia útil inteiro tem vinte faixas de trinta minutos; o esqueleto desenha esse tanto.
+const A_FULL_DAY = 20;
+
+/** A grade de horários enquanto a ocupação do dia não chegou: mesmas colunas, mesma altura. */
+export function AppointmentSlotsSkeleton() {
+    return (
+        <Skeleton label="Carregando" className="flex flex-col gap-2">
+            <Skeleton className="h-3 w-3/5 max-w-lg" />
+
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-8">
+                {Array.from({ length: A_FULL_DAY }, (_, at) => <Skeleton key={at} className="min-h-12 w-full" />)}
+            </div>
+        </Skeleton>
+    );
+}
 
 /**
  * As faixas do dia com a ocupação de cada uma. Mostrar o que não dá antes do clique é o que

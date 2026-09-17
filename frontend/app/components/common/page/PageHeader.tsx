@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 type PageHeaderProps = {
-    title: string;
+    title: ReactNode;
     subtitle?: ReactNode;
     /** A ação primária da tela, quando existir. */
     children?: ReactNode;

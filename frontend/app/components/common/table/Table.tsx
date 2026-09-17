@@ -10,12 +10,16 @@ export type TableColumn = {
 
 type TableProps = {
     columns: readonly TableColumn[];
+    /** As linhas são esqueleto: o cabeçalho fica, e o leitor de tela sabe que o corpo vai mudar. */
+    busy?: boolean;
     children: ReactNode;
 };
 
-export function Table({ columns, children }: TableProps) {
+export function Table({ columns, busy = false, children }: TableProps) {
     return (
-        <div className="overflow-x-auto rounded-t-card">
+        <div aria-busy={busy || undefined} className="overflow-x-auto rounded-t-card">
+            {busy && <span role="status" className="sr-only">Carregando</span>}
+
             <table className="w-full border-collapse text-sm">
                 <colgroup>
                     {columns.map(column => <col key={column.key} style={{ width: column.width }} />)}

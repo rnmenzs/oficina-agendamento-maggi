@@ -6,6 +6,7 @@ import { BadgeStatus } from "~/components/common/badge/BadgeStatus";
 import { Button } from "~/components/common/button/Button";
 import { ButtonIcon } from "~/components/common/button/ButtonIcon";
 import { Card } from "~/components/common/card/Card";
+import { LoadingBar } from "~/components/common/loading/LoadingBar";
 import { FormDate } from "~/components/common/forms/FormDate/FormDate";
 import { FormDateRange } from "~/components/common/forms/FormDateRange/FormDateRange";
 import type { Day, DayRange } from "~/types/TypeCommon";
@@ -16,6 +17,7 @@ import { FormPlate } from "~/components/common/forms/FormPlate";
 import { FormRadio } from "~/components/common/forms/FormRadio";
 import { FormSearch, type FormSearchOption } from "~/components/common/forms/FormSearch/FormSearch";
 import { FormSelect } from "~/components/common/forms/FormSelect/FormSelect";
+import { FormSkeleton } from "~/components/common/forms/FormSkeleton";
 import { FormText } from "~/components/common/forms/FormText";
 import { Modal } from "~/components/common/modal/Modal";
 import { ModalControlProvider } from "~/components/common/modal/Modal.hook";
@@ -31,7 +33,8 @@ import { DataList } from "~/components/common/page/DataList";
 import { PageBreadcrumb } from "~/components/common/page/PageBreadcrumb";
 import { PageHeader } from "~/components/common/page/PageHeader";
 import { Skeleton } from "~/components/common/skeleton/Skeleton";
-import { SkeletonTable } from "~/components/common/skeleton/SkeletonTable";
+import { SkeletonPagination } from "~/components/common/skeleton/SkeletonPagination";
+import { SkeletonRows } from "~/components/common/skeleton/SkeletonRows";
 import { StateEmpty } from "~/components/common/state/StateEmpty";
 import { StateError } from "~/components/common/state/StateError";
 import { Table, type TableColumn } from "~/components/common/table/Table";
@@ -42,7 +45,8 @@ import { Tooltip } from "~/components/common/tooltip/Tooltip";
 import { AppointmentFilters } from "~/components/appointment/AppointmentFilters";
 import { AppointmentHistory } from "~/components/appointment/AppointmentHistory";
 import { AppointmentPaths } from "~/components/appointment/AppointmentPaths";
-import { AppointmentSlots } from "~/components/appointment/AppointmentSlots";
+import { AppointmentSkeleton } from "~/components/appointment/AppointmentSkeleton";
+import { AppointmentSlots, AppointmentSlotsSkeleton } from "~/components/appointment/AppointmentSlots";
 import { AppointmentStatusBar } from "~/components/appointment/AppointmentStatusBar";
 import { AppointmentSummary } from "~/components/appointment/AppointmentSummary";
 import { AppointmentTable } from "~/components/appointment/AppointmentTable";
@@ -125,6 +129,13 @@ const CLIENT_LIST: readonly ClientResponse[] = [
 ];
 
 const VEHICLE_COUNT: Record<string, number> = { c1: 2, c2: 1, c3: 0 };
+
+const SKELETON_COLUMNS: readonly TableColumn[] = [
+    { key: "data", label: "Data" },
+    { key: "placa", label: "Placa" },
+    { key: "servico", label: "Serviço" },
+    { key: "status", label: "Status" }
+];
 
 const VEHICLE_LIST: readonly VehicleResponse[] = [
     {
@@ -736,6 +747,13 @@ export default function Catalogo() {
                         </Usage>
                     </Component>
 
+                    <Component name="FormSkeleton">
+                        <Usage code="<FormSkeleton label />  o rótulo é real e a caixa tem a altura do campo" layout="grid">
+                            <FormSkeleton label="Cliente" />
+                            <FormSkeleton label="Veículo" />
+                        </Usage>
+                    </Component>
+
                     <Component name="FormText">
                         <Usage code="<FormText required />  a estrela marca o obrigatório" layout="grid">
                             <FormText label="Nome" placeholder="Maria Silva" hint="Como aparece na ordem de serviço." required />
@@ -875,10 +893,34 @@ export default function Catalogo() {
                         </Usage>
                     </Component>
 
-                    <Component name="SkeletonTable">
-                        <Usage code="<SkeletonTable columns={5} />  a única forma que se repete" layout="grid">
-                            <SkeletonTable columns={5} />
-                            <SkeletonTable columns={3} rows={2} />
+                    <Component name="SkeletonRows">
+                        <Usage code="<Table busy><SkeletonRows columns={4} /></Table>  o cabeçalho fica, o corpo espera" layout="stack">
+                            <Card>
+                                <Table columns={SKELETON_COLUMNS} busy>
+                                    <SkeletonRows columns={SKELETON_COLUMNS.length} />
+                                </Table>
+                            </Card>
+                        </Usage>
+                    </Component>
+
+                    <Component name="SkeletonPagination">
+                        <Usage code="<SkeletonPagination />  a mesma altura do rodapé de verdade: quando os dados chegam, nada pula" layout="stack">
+                            <Card><SkeletonPagination /></Card>
+                        </Usage>
+                    </Component>
+                </Folder>
+
+                <Folder path="common/loading/">
+                    <Component name="LoadingBar">
+                        <Usage code="<LoadingBar active />  no topo da janela enquanto o roteador trabalha; aqui presa na caixa" layout="stack">
+                            <div className="relative h-8 translate-x-0 overflow-hidden rounded-sm border border-line bg-surface-alt">
+                                <LoadingBar active />
+                            </div>
+                        </Usage>
+                        <Usage code="<LoadingBar active={false} />  some por opacidade, sem sair do DOM" layout="stack">
+                            <div className="relative h-8 translate-x-0 overflow-hidden rounded-sm border border-line bg-surface-alt">
+                                <LoadingBar active={false} />
+                            </div>
                         </Usage>
                     </Component>
                 </Folder>
@@ -1002,6 +1044,12 @@ export default function Catalogo() {
                                 />
                             </Card>
                         </Usage>
+                        <Usage code="<AppointmentTable loading />  o cabeçalho fica, as linhas esperam" layout="stack">
+                            <Card>
+                                <AppointmentTable appointments={[]} loading linkTo={() => "/catalogo"} />
+                                <SkeletonPagination />
+                            </Card>
+                        </Usage>
                     </Component>
 
                     <Component name="AppointmentSummary">
@@ -1040,6 +1088,15 @@ export default function Catalogo() {
                         <Usage code="<AppointmentSlots slots value onChange />  cheia, veículo ocupado e passado ficam travados" layout="stack">
                             <SlotsSample />
                         </Usage>
+                        <Usage code="<AppointmentSlotsSkeleton />  a grade de um dia inteiro, enquanto a ocupação não chega" layout="stack">
+                            <AppointmentSlotsSkeleton />
+                        </Usage>
+                    </Component>
+
+                    <Component name="AppointmentSkeleton">
+                        <Usage code="<AppointmentSkeleton />  o cartão da ficha inteiro, com os rótulos no lugar" layout="stack">
+                            <Card><AppointmentSkeleton /></Card>
+                        </Usage>
                     </Component>
                 </Folder>
 
@@ -1052,6 +1109,11 @@ export default function Catalogo() {
                                     vehicleCount={client => VEHICLE_COUNT[client.id] ?? 0}
                                     linkTo={() => "/catalogo"}
                                 />
+                            </Card>
+                        </Usage>
+                        <Usage code="<ClientTable loading />" layout="stack">
+                            <Card>
+                                <ClientTable clients={[]} loading vehicleCount={() => 0} linkTo={() => "/catalogo"} />
                             </Card>
                         </Usage>
                     </Component>
