@@ -46,10 +46,13 @@ public sealed class AgendamentosController : ControllerBase
 
     // Um endpoint de status em vez de três rotas de ação: o que muda é sempre o mesmo campo,
     // e PATCH é exatamente alteração parcial. Quais transições valem é regra do domínio.
+    // O 409 é a guarda de concorrência: a gravação confere o status lido, e se outra requisição
+    // o mudou no meio, é conflito — o Swagger tem que contar isso a quem integra.
     [HttpPatch("{id:guid}/status")]
     [ProducesResponseType(typeof(AgendamentoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AgendamentoResponse>> AlterarStatus(
         Guid id,
         AlterarStatusRequest request,

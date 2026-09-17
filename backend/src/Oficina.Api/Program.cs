@@ -30,7 +30,10 @@ builder.Services.AddScoped<AgendamentoServico>();
 // Se CORS_ORIGINS estiver definida, sobrescreve as origens do appsettings.
 var corsOriginsOverride = Environment.GetEnvironmentVariable("CORS_ORIGINS");
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+        options.InvalidModelStateResponseFactory = ModelStateProblem.Responder);
 
 builder.Services.AddSwaggerGen(options =>
 {
