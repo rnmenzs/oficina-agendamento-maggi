@@ -371,6 +371,31 @@ public class AgendamentoServicoTests
         );
     }
 
+    // A checagem da BLL vê dois e libera; entre ela e a gravação, outra requisição grava o terceiro.
+    // Sem a medição repetida na gravação, o quarto entraria — foi o que aconteceu com seis pedidos
+    // simultâneos contra a API: os seis gravados.
+    [Fact]
+    public async Task CriarAsync_recusa_quando_outra_requisicao_lota_a_oficina_entre_a_checagem_e_a_gravacao()
+    {
+        var (servico, veiculos, agendamentos) = Montar();
+        await servico.CriarAsync(new CriarAgendamentoRequest(veiculos[0].Id, NoveDaManha, "TrocaOleo"), CancellationToken.None);
+        await servico.CriarAsync(new CriarAgendamentoRequest(veiculos[1].Id, NoveDaManha, "TrocaOleo"), CancellationToken.None);
+
+        agendamentos.QuandoForGravar = () =>
+            agendamentos.GravarPorFora(veiculos[2].Id, NoveDaManha, TipoServico.TrocaOleo);
+
+        var excecao = await Assert.ThrowsAsync<ConflitoException>(
+            () => servico.CriarAsync(
+                new CriarAgendamentoRequest(veiculos[3].Id, NoveDaManha, "TrocaOleo"),
+                CancellationToken.None
+            )
+        );
+
+        Assert.Contains("3 serviços", excecao.Message);
+        Assert.Equal(3, agendamentos.Agendamentos.Count);
+        Assert.DoesNotContain(agendamentos.Agendamentos, a => a.VeiculoId == veiculos[3].Id);
+    }
+
     [Fact]
     public async Task AlterarStatusAsync_recusa_quando_outra_requisicao_muda_o_status_antes()
     {
@@ -728,9 +753,21 @@ null, null, "Pausado", null, null, 1, 10, CancellationToken.None)
 
         public Task<AgendamentoNaAgenda> AdicionarAsync(
             Agendamento agendamento,
+            int maximoDeSimultaneos,
             CancellationToken cancellationToken
         )
         {
+            QuandoForGravar?.Invoke();
+
+            // Como o repositório de verdade: o pico é medido de novo na hora de gravar, já vendo
+            // o que outra requisição gravou depois da checagem da BLL.
+            if (Pico(agendamento.Inicio, agendamento.Fim) >= maximoDeSimultaneos)
+            {
+                throw new ConflitoException(
+                    $"A oficina já tem {maximoDeSimultaneos} serviços nesse horário."
+                );
+            }
+
             var sobrepoe = Agendamentos.Any(existente =>
                 existente.VeiculoId == agendamento.VeiculoId
                 && Ativo(existente)
@@ -817,15 +854,23 @@ null, null, "Pausado", null, null, 1, 10, CancellationToken.None)
             DateTimeOffset inicio,
             DateTimeOffset fim,
             CancellationToken cancellationToken
-        )
+        ) => Task.FromResult(Pico(inicio, fim));
+
+        private int Pico(DateTimeOffset inicio, DateTimeOffset fim)
         {
             var ativos = Agendamentos.Where(a => Ativo(a) && Cruza(a, inicio, fim)).ToList();
 
             var marcos = new List<DateTimeOffset> { inicio };
             marcos.AddRange(ativos.Select(a => a.Inicio).Where(i => i > inicio && i < fim));
 
-            return Task.FromResult(marcos.Max(marco =>
-                ativos.Count(a => a.Inicio <= marco && a.Fim > marco)));
+            return marcos.Max(marco => ativos.Count(a => a.Inicio <= marco && a.Fim > marco));
+        }
+
+        // Só para o teste encenar a outra requisição: grava sem passar pelo serviço nem pela
+        // checagem — é o que uma requisição concorrente faz do ponto de vista desta.
+        public void GravarPorFora(Guid veiculoId, DateTimeOffset inicio, TipoServico tipoServico)
+        {
+            Agendamentos.Add(Gravar(Agendamento.Criar(veiculoId, inicio, tipoServico, Carimbo)));
         }
 
         public Task<Pagina<AgendamentoNaAgenda>> ListarAsync(
