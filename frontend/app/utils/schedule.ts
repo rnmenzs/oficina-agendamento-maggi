@@ -50,6 +50,27 @@ function workshopMinutes(instant: Instant): number {
     return minutesOf(workshopParts(instant)[1]);
 }
 
+type Busy = {
+    vehicleId: Id;
+    from: number;
+    to: number;
+};
+
+/**
+ * Quantos serviços correm ao mesmo tempo no instante mais cheio da janela — e não quantos a
+ * cruzam. Três serviços curtos em sequência cruzam a janela de um longo sem nunca estarem juntos:
+ * contar o cruzamento recusaria um horário que cabe.
+ *
+ * O pico só pode acontecer quando alguém começa, então basta olhar o começo da janela e o começo
+ * de cada serviço dentro dela.
+ */
+function peakWithin(crossing: readonly Busy[], start: number, end: number): number {
+    const marks = [start, ...crossing.map(item => item.from).filter(at => at > start && at < end)];
+
+    return Math.max(0, ...marks.map(at =>
+        crossing.filter(item => item.from <= at && item.to > at).length));
+}
+
 /**
  * As faixas de 30 em 30 dentro do expediente, com a ocupação de cada uma. É o que faz a tela
  * mostrar antes o que dá para escolher, em vez de recusar depois do envio.
@@ -85,16 +106,17 @@ export function slotsOfDay(
     for (let start = OPENS_AT; start + duration <= closing; start += STEP) {
         const end = start + duration;
         const crossing = busy.filter(item => start < item.to && end > item.from);
+        const peak = peakWithin(crossing, start, end);
 
         const reason: SlotReason | null = start < passedBy ? "já passou"
             : crossing.some(item => item.vehicleId === vehicleId) ? "veículo ocupado"
-            : crossing.length >= AT_THE_SAME_TIME ? "oficina cheia"
+            : peak >= AT_THE_SAME_TIME ? "oficina cheia"
             : null;
 
         slots.push({
             time: asTime(start),
             endsAt: asTime(end),
-            taken: Math.min(crossing.length, AT_THE_SAME_TIME),
+            taken: Math.min(peak, AT_THE_SAME_TIME),
             free: reason === null,
             reason
         });
