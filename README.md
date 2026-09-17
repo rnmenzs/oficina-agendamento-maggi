@@ -17,8 +17,9 @@ backend/                  solução .NET (Oficina.slnx)
   tests/Oficina.Tests     testes unitários das regras de negócio (xUnit)
 frontend/                 aplicação React Router v7 (SPA)
 scripts/                  scripts SQL numerados: tabelas, restrições e índices, seed e migrations
-docker-compose.yml        PostgreSQL já com os scripts executados
-run.sh                    sobe banco, API e frontend com um comando
+docker-compose.yml        PostgreSQL já com os scripts executados, e a API
+backend/Dockerfile        imagem da API, em dois estágios
+run.sh                    sobe banco e API em containers e o frontend com um comando, e escuta teclas
 .env.example              template de variáveis de ambiente (copiar para .env)
 ```
 
@@ -28,9 +29,11 @@ Dependências entre as camadas: `Api → BLL, DTO, DAL` · `BLL → Domain, DTO`
 
 ### Pré-requisitos
 
-- .NET SDK 10
-- Node.js 22 ou superior
-- Docker com Compose (para o banco), ou um PostgreSQL 16 ou superior instalado
+- Docker com Compose — o `run.sh` e o `docker compose up` sobem banco e API em containers
+- Node.js 22 ou superior — o frontend roda na máquina
+- .NET SDK 10 — só para rodar os testes ou a API fora do container (passo 2)
+
+Sem Docker, um PostgreSQL 16 ou superior instalado serve para o banco (passo 1), e a API sobe com o SDK (passo 2).
 
 ### 0. Variáveis de ambiente
 
@@ -50,28 +53,45 @@ O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo ba
 | `DB_PORT` | `5432` | Porta exposta no host |
 | `CONNECTION_STRING` | `Host=localhost;Port=5432;...` | Connection string do backend, montada com os mesmos usuário, senha, banco e porta |
 | `CORS_ORIGINS` | `http://localhost:5173` | Origens permitidas no CORS (separadas por vírgula) |
+| `API_PORT` | `5062` | Porta exposta no host para a API quando ela sobe pelo Compose |
 
 > **Nota:** O `.env` está no `.gitignore`. Apenas o `.env.example` é versionado.
 
 ### Tudo de uma vez
 
-Com o `.env` preenchido, um comando sobe banco, API e frontend:
+Com o `.env` preenchido, um comando sobe banco e API em containers e o frontend nesta máquina:
 
 ```bash
 ./run.sh
 ```
 
-Ele espera cada peça responder antes de seguir para a próxima, aplica as migrations pendentes e, no fim, imprime os endereços. Com tudo no ar, o terminal escuta teclas:
+Ele constrói a imagem da API (a primeira vez demora; as seguintes usam cache), espera cada peça responder antes de seguir para a próxima, aplica as migrations pendentes e, no fim, imprime os endereços e onde cada peça roda — banco e API nos containers, o frontend como processo da máquina, com o pid. Ao encerrar, diz o motivo (`q`, `Ctrl+C` ou um sinal vindo de fora). Com tudo no ar, o terminal escuta teclas:
 
 | Tecla | Faz |
 |---|---|
-| `r` | reinicia a API e o frontend |
+| `r` | reconstrói a imagem da API com o código atual e reinicia API e frontend |
 | `z` | zera o banco: esvazia as três tabelas, sem seed; o esquema, a API e o frontend ficam |
 | `q` ou `Ctrl+C` | derruba tudo, banco incluído — o volume fica, os dados voltam na próxima subida |
 
 Para recriar o banco do zero com o seed, `./run.sh --reset`.
 
 A saída de cada processo vai para `.run/api.log` e `.run/web.log`, apagados a cada execução. Se uma porta já estiver ocupada, o script recusa em vez de subir pela metade.
+
+### Só o Compose, sem o script
+
+É o que o `run.sh` faz por baixo, sem as teclas e sem o frontend: o Compose sobe o banco com os scripts executados e a API compilada dentro do container.
+
+```bash
+docker compose up -d
+```
+
+A API fica em `http://localhost:5062` (Swagger em `/swagger`), a mesma porta do `dotnet run`, então o frontend não precisa saber de onde ela vem. Dentro da rede do Compose a API fala com o banco pelo nome do serviço, `db`, na porta interna — a `CONNECTION_STRING` do `.env` aponta para `localhost` e serve para a API rodando fora. O frontend sobe pelo passo 3.
+
+A imagem é Debian, não Alpine, de propósito: as regras de horário leem o banco de fusos do sistema (`tzdata`), que a Alpine não traz.
+
+Para saber de onde a API está respondendo, a primeira linha do log dela diz: `docker compose logs api` mostra *"Oficina API rodando dentro de um container Docker, banco em db"*; pelo `dotnet run`, *"nesta máquina (fora de container), banco em localhost"*.
+
+Para rodar a API fora do container (passo 2, com o SDK), derrube só a do Compose antes: `docker compose stop api`. As duas usam a porta 5062.
 
 As seções abaixo são o passo a passo equivalente, para rodar cada parte separadamente ou sem Docker.
 
@@ -83,7 +103,7 @@ As seções abaixo são o passo a passo equivalente, para rodar cada parte separ
 docker compose up -d db
 ```
 
-As credenciais vêm do `.env`. Se a porta já estiver em uso por outro PostgreSQL, altere `DB_PORT` no `.env` e ajuste `CONNECTION_STRING` com a mesma porta.
+Só o banco, para quem vai subir a API com o SDK (passo 2). As credenciais vêm do `.env`. Se a porta já estiver em uso por outro PostgreSQL, altere `DB_PORT` no `.env` e ajuste `CONNECTION_STRING` com a mesma porta.
 
 Os scripts só rodam quando o volume está vazio. Para recriar o banco do zero:
 
@@ -132,7 +152,7 @@ dotnet test
 
 ### 3. Frontend
 
-Precisa de Node 20 ou superior e do pnpm. Se não tiver o pnpm, `corepack enable` já o disponibiliza
+Precisa de Node 22 ou superior e do pnpm. Se não tiver o pnpm, `corepack enable` já o disponibiliza
 nas versões recentes do Node.
 
 ```bash
@@ -205,7 +225,7 @@ carregamento. Serve para revisar a interface sem depender de dados.
 
 **Seed com datas relativas.** Calculadas a partir da próxima segunda-feira no momento da execução, então continuam válidas em qualquer data. A próxima segunda às 09:00 já nasce com três serviços simultâneos, para a regra de capacidade poder ser testada na hora.
 
-**Swagger sempre habilitado, redirecionamento HTTPS só fora de desenvolvimento.** Local a API roda em HTTP na 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS. O perfil `https` continua disponível com `dotnet run --launch-profile https`.
+**Swagger sempre habilitado, redirecionamento HTTPS só fora de desenvolvimento e só com porta HTTPS configurada.** Local a API roda em HTTP na 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS; no container ela também só escuta HTTP. O perfil `https` continua disponível com `dotnet run --launch-profile https`.
 
 **Configuração via `.env`.** Credenciais em variáveis de ambiente mesmo num projeto de teste público. O `.env.example` versionado documenta as variáveis; o `.env` real não é versionado.
 
