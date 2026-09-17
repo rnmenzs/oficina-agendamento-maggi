@@ -1,5 +1,40 @@
 import type { Day, Instant } from "~/types/TypeCommon";
 
+/**
+ * A oficina atende num fuso só, e é nele que dia e hora são lidos — não no de quem abre a tela.
+ * Sem isto, a mesma agenda vista de outro fuso mostraria horários deslocados e ofereceria faixas
+ * que a API recusa: quem decide lá é o horário da oficina.
+ */
+export const WORKSHOP_TIME_ZONE = "America/Sao_Paulo";
+
+// "sv-SE" formata como "2026-09-16 09:00", que já é a ordem que a gente quer partir.
+const inWorkshop = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: WORKSHOP_TIME_ZONE,
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    hour12: false
+});
+
+// O offset é lido do próprio fuso, e não fixado em -03:00: o Brasil não tem horário de verão
+// desde 2019, mas a regra pode voltar, e aí a conta muda sozinha.
+function offsetAt(instant: Date): string {
+    const name = new Intl.DateTimeFormat("en-US", {
+        timeZone: WORKSHOP_TIME_ZONE, timeZoneName: "longOffset"
+    }).formatToParts(instant).find(part => part.type === "timeZoneName")?.value ?? "";
+
+    const offset = name.replace("GMT", "");
+
+    // Em UTC o Intl devolve só "GMT", e o que sobra é vazio: sem o formato certo, a data cairia no
+    // fuso do navegador sem avisar. Aí vale mais o deslocamento conhecido da oficina.
+    return /^[+-]\d{2}:\d{2}$/.test(offset) ? offset : "-03:00";
+}
+
+/** O dia e a hora que um instante representa na oficina: `["2026-09-16", "09:00"]`. */
+export function workshopParts(instant: Instant | Date): [Day, string] {
+    const [day, time] = inWorkshop.format(new Date(instant)).split(" ");
+
+    return [day ?? "", time ?? ""];
+}
+
 export const WEEKDAY_INITIALS = ["D", "S", "T", "Q", "Q", "S", "S"] as const;
 
 const SHORT_WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"] as const;
@@ -29,6 +64,23 @@ export function toDay(date: Date): Day {
     return `${date.getFullYear()}-${month}-${dayOfMonth}`;
 }
 
+/**
+ * Hoje para a oficina, e não para o relógio de quem abre a tela. Num fuso adiantado, o "hoje" do
+ * navegador já é amanhã lá — e um calendário com `min` nesse dia barraria o dia que ainda vale.
+ */
+export function today(): Day {
+    return workshopParts(new Date())[0];
+}
+
+/** Dia que o resto do código pode usar sem conferir: veio da URL, que qualquer um edita. */
+export function isDay(value: string | null): value is Day {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+    // O Date rola o mês sozinho: "2026-02-31" vira 2 de março e passaria por válido. A ida e volta
+    // pega isso — se o dia existisse, ele voltaria escrito igual.
+    return toDay(fromDay(value)) === value;
+}
+
 export function formatDay(day: Day): string {
     const [year, month, date] = day.split("-");
 
@@ -56,12 +108,22 @@ export function formatDayLong(day: Day): string {
 }
 
 export function formatTime(instant: Instant): string {
-    return new Date(instant).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return workshopParts(instant)[1];
 }
 
-/** O dia em que um instante cai, no fuso de quem está olhando, que é o da oficina. */
+/**
+ * O instante que o dia e a hora escolhidos representam **na oficina**. O ISO sai em UTC, que é
+ * como a API recebe, mas o deslocamento aplicado é o do fuso da oficina, não o do navegador.
+ */
+export function instantOf(day: Day, time: string): Instant {
+    const noon = new Date(`${day}T12:00:00Z`);
+
+    return new Date(`${day}T${time}:00${offsetAt(noon)}`).toISOString();
+}
+
+/** O dia em que um instante cai para a oficina. */
 export function dayOf(instant: Instant): Day {
-    return toDay(new Date(instant));
+    return workshopParts(instant)[0];
 }
 
 export function monthLabel(date: Date): string {

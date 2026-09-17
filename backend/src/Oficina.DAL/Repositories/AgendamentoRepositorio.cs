@@ -171,17 +171,38 @@ public sealed class AgendamentoRepositorio : IAgendamentoRepositorio
         return MontarAgenda(linha);
     }
 
-    public async Task<int> ContarAtivosNoPeriodoAsync(
+    public async Task<int> PicoDeSimultaneosAsync(
         DateTimeOffset inicio,
         DateTimeOffset fim,
         CancellationToken cancellationToken
     )
     {
+        // O pico só pode mudar quando alguém começa: entre dois inícios, o número de serviços em
+        // curso não sobe. Então basta medir no começo da janela e no começo de cada agendamento
+        // que cai dentro dela — é a varredura clássica, e evita varrer minuto a minuto.
+        //
+        // Contar quem cruza a janela, que é o que esta consulta fazia antes, recusava caso
+        // legítimo: três serviços de trinta minutos em sequência cruzam a janela de um de noventa
+        // sem nunca estarem juntos.
         const string sql = $"""
-            SELECT count(*)
-            FROM agendamentos a
-            WHERE {ApenasAtivos}
-              AND {CruzaOPeriodo}
+            WITH ativos AS (
+                SELECT a.inicio, a.fim
+                FROM agendamentos a
+                WHERE {ApenasAtivos}
+                  AND {CruzaOPeriodo}
+            ),
+            marcos AS (
+                SELECT @Inicio::timestamptz AS instante
+                UNION
+                SELECT inicio FROM ativos
+                WHERE inicio > @Inicio::timestamptz AND inicio < @Fim::timestamptz
+            )
+            SELECT coalesce(max((
+                SELECT count(*)
+                FROM ativos a
+                WHERE a.inicio <= m.instante AND a.fim > m.instante
+            )), 0)
+            FROM marcos m
             """;
 
         await using var conexao = await _fonteDeDados.OpenConnectionAsync(cancellationToken);

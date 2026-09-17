@@ -3,7 +3,7 @@ import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { useFlipUp } from "~/hooks/useFlipUp";
 import { useOutsideClick } from "~/hooks/useOutsideClick";
 import type { Day } from "~/types/TypeCommon";
-import { addDays, addMonths, fromDay, toDay } from "~/utils/date";
+import { addDays, addMonths, fromDay, toDay, today as workshopToday } from "~/utils/date";
 
 // O calendário tem altura fixa: seis semanas, cabeçalho e a folga de `mt-1`.
 const HEIGHT = 314;
@@ -21,7 +21,7 @@ type UseFormDate = {
 };
 
 export function useFormDate({ value, defaultValue, min, max, onChange }: UseFormDate) {
-    const start = value ?? defaultValue ?? toDay(new Date());
+    const start = value ?? defaultValue ?? workshopToday();
     const [internal, setInternal] = useState(defaultValue ?? "");
     const [open, setOpen] = useState(false);
     const [month, setMonth] = useState(() => fromDay(start));
@@ -31,7 +31,7 @@ export function useFormDate({ value, defaultValue, min, max, onChange }: UseForm
     const id = useId();
 
     const current = value ?? internal;
-    const today = toDay(new Date());
+    const today = workshopToday();
 
     useOutsideClick(box, open, () => setOpen(false));
 

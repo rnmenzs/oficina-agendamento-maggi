@@ -21,9 +21,11 @@ public interface IAgendamentoRepositorio
         CancellationToken cancellationToken
     );
 
-    // Para a regra de capacidade. Conta em vez de trazer as linhas, porque a camada de regras
-    // só precisa do número. Considera apenas Agendado e EmAndamento: cancelado e concluído não ocupam vaga.
-    Task<int> ContarAtivosNoPeriodoAsync(
+    // Para a regra de capacidade. Devolve o PICO de serviços ao mesmo tempo dentro do período, e
+    // não quantos o cruzam: três serviços curtos em sequência cruzam a janela de um longo sem nunca
+    // estarem juntos, e contá-los recusaria um horário que cabe.
+    // Considera apenas Agendado e EmAndamento: cancelado e concluído não ocupam vaga.
+    Task<int> PicoDeSimultaneosAsync(
         DateTimeOffset inicio,
         DateTimeOffset fim,
         CancellationToken cancellationToken
