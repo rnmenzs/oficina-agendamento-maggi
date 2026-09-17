@@ -26,14 +26,19 @@ const OCCUPYING: readonly AppointmentStatus[] = ["Agendado", "EmAndamento"];
 // A API corta o tamanho da página em 50, mesmo pedindo mais. Um dia cheio cabe em três serviços
 // simultâneos por faixa, então pode passar de 50 num dia de trinta minutos — por isso o laço:
 // parar na primeira página mostraria horário ocupado como livre.
+// Teto de páginas: a oficina atende três ao mesmo tempo, então um dia de serviços de trinta
+// minutos cabe em ~60 ativos — seis páginas de dez sobra. O limite existe para o total vir do
+// servidor: um erro de paginação lá viraria centenas de requisições simultâneas daqui.
+const MAX_PAGES = 10;
+
 async function everyPage(filter: AppointmentFilter): Promise<AppointmentResponse[]> {
     const first = await list({ ...filter, pagina: 1 });
 
     if (first.totalDePaginas <= 1) return [...first.itens];
 
+    const pages = Math.min(first.totalDePaginas, MAX_PAGES);
     const rest = await Promise.all(
-        Array.from({ length: first.totalDePaginas - 1 }, (_, at) =>
-            list({ ...filter, pagina: at + 2 }))
+        Array.from({ length: pages - 1 }, (_, at) => list({ ...filter, pagina: at + 2 }))
     );
 
     return [first, ...rest].flatMap(page => page.itens);
