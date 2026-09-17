@@ -19,6 +19,7 @@ import { ApiError } from "~/services/ServiceHttp";
 import { get } from "~/services/ServiceAppointment";
 import { dayOf, formatDay, formatDayLong, formatTime } from "~/utils/date";
 import { formatPhone } from "~/utils/phone";
+import { deferred } from "~/utils/promise";
 import { SERVICE_LABEL } from "~/utils/service";
 import type {
     AppointmentDetailResponse, AppointmentResponse, AppointmentStatus
@@ -32,7 +33,7 @@ export function meta() {
 }
 
 export function clientLoader({ params }: Route.ClientLoaderArgs) {
-    return { appointment: get(params.id) };
+    return { appointment: deferred(get(params.id)) };
 }
 
 // Um id que não existe é 404, não falha: a mensagem diz o que aconteceu com a página, e não que a

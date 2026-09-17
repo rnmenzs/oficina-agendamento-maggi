@@ -16,6 +16,7 @@ import { useStatusActions } from "~/hooks/useStatusActions";
 import { list } from "~/services/ServiceAppointment";
 import type { AppointmentResponse } from "~/types/TypeAppointment";
 import { SHORTCUTS, type PeriodShortcut } from "~/utils/period";
+import { deferred } from "~/utils/promise";
 import type { Route } from "./+types/route";
 
 // "Nenhum agendamento hoje" diz mais do que "neste período" — quando dá para dizer qual período.
@@ -34,7 +35,7 @@ export function meta() {
 export function clientLoader({ request }: Route.ClientLoaderArgs) {
     const search = new URL(request.url).searchParams;
 
-    return { page: list(readAppointmentFilter(search)) };
+    return { page: deferred(list(readAppointmentFilter(search))) };
 }
 
 export function ErrorBoundary() {

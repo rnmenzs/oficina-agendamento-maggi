@@ -19,6 +19,7 @@ import type { ClientResponse, CreateClientRequest } from "~/types/TypeClient";
 import type { Id } from "~/types/TypeCommon";
 import { fieldErrorOf } from "~/utils/fieldError";
 import { normalizePhone } from "~/utils/phone";
+import { deferred } from "~/utils/promise";
 import type { Route } from "./+types/route";
 
 export function meta() {
@@ -56,7 +57,7 @@ async function loadBase(): Promise<Base> {
 
 // A promessa vai sem esperar: cabeçalho, busca e botão pintam na hora, e só a tabela aguarda.
 export function clientLoader() {
-    return { base: loadBase() };
+    return { base: deferred(loadBase()) };
 }
 
 export function ErrorBoundary() {

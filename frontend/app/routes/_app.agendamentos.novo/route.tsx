@@ -21,6 +21,7 @@ import type { ServiceType } from "~/types/TypeAppointment";
 import { dayOf, formatDayLong, formatTime, instantOf, isDay, today } from "~/utils/date";
 import { formatPhone } from "~/utils/phone";
 import { formatPlate } from "~/utils/plate";
+import { deferred } from "~/utils/promise";
 import { isServiceType, SERVICE_LABEL, SERVICE_MINUTES, SERVICE_TYPES } from "~/utils/service";
 import { isOpen, nextOpenDay, slotsOfDay } from "~/utils/schedule";
 import type { Route } from "./+types/route";
@@ -53,9 +54,9 @@ export function clientLoader({ request }: Route.ClientLoaderArgs) {
     const day = isDay(search.get("dia")) ? search.get("dia")! : nextOpenDay();
 
     return {
-        clients: listClients(),
-        vehicles: clientId ? listOfClient(clientId).catch(missing) : Promise.resolve([]),
-        appointments: isOpen(day) ? occupyingOn(day) : Promise.resolve([]),
+        clients: deferred(listClients()),
+        vehicles: deferred(clientId ? listOfClient(clientId).catch(missing) : Promise.resolve([])),
+        appointments: deferred(isOpen(day) ? occupyingOn(day) : Promise.resolve([])),
         day
     };
 }

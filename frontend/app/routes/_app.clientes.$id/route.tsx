@@ -28,6 +28,7 @@ import type { CreateVehicleRequest, VehicleResponse } from "~/types/TypeVehicle"
 import { dayOf, formatDay } from "~/utils/date";
 import { fieldErrorOf } from "~/utils/fieldError";
 import { formatPhone } from "~/utils/phone";
+import { deferred } from "~/utils/promise";
 import type { Route } from "./+types/route";
 
 const PAGE_SIZE = 10;
@@ -46,8 +47,8 @@ export async function clientLoader({ params, request }: Route.ClientLoaderArgs) 
     // As três chamadas saem juntas, mas só o cliente é esperado: sem ele não há nem título — e um
     // id que não existe tem que cair no 404 antes de qualquer coisa pintar. Veículos e histórico
     // vão como promessa, e cada bloco da tela aguarda o seu.
-    const vehicles = vehiclesOf(params.id);
-    const appointments = appointmentsOf(params.id, page, PAGE_SIZE);
+    const vehicles = deferred(vehiclesOf(params.id));
+    const appointments = deferred(appointmentsOf(params.id, page, PAGE_SIZE));
     const client = await get(params.id);
 
     return { client, vehicles, appointments, page };

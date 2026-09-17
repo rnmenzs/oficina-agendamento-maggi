@@ -15,7 +15,12 @@ export function LoadingBar({ active }: LoadingBarProps) {
             className={`pointer-events-none fixed inset-x-0 z-50 h-0.5 overflow-hidden
                 transition-opacity duration-200 ${active ? "opacity-100" : "opacity-0"}`}
         >
-            <div className="h-full w-1/3 animate-slide bg-primary motion-reduce:w-full motion-reduce:animate-none" />
+            {/* A animação só existe enquanto a barra está visível: invisível e animando, ela ainda
+                custaria repintura a cada quadro. */}
+            <div
+                className={`h-full w-1/3 bg-primary motion-reduce:w-full
+                    ${active ? "animate-slide motion-reduce:animate-none" : ""}`}
+            />
         </div>
     );
 }
