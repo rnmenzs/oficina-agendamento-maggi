@@ -178,7 +178,8 @@ export default function NewAppointment({ loaderData, actionData }: Route.Compone
                             options={clients.map(client => ({
                                 value: client.id,
                                 label: client.nome,
-                                detail: formatPhone(client.telefone)
+                                detail: formatPhone(client.telefone),
+                                terms: [client.email, client.telefone]
                             }))}
                             defaultValue={search.get("cliente") ?? ""}
                             onChange={value => change({ cliente: value, veiculo: "", hora: "" })}

@@ -6,10 +6,28 @@ export type FormSearchOption = {
     value: string;
     label: string;
     detail?: string;
+    /** O que também procura, sem aparecer na lista: e-mail do cliente, telefone sem máscara. */
+    terms?: readonly string[];
 };
 
 const plain = (text: string) =>
     text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+const digitsOf = (text: string) => text.replace(/\D/g, "");
+
+// Cada pedaço é comparado sozinho, e não tudo emendado: emendado, o ano de um modelo cola no
+// telefone e inventa correspondência que não existe em campo nenhum.
+function hits(option: FormSearchOption, needle: string): boolean {
+    const parts = [option.label, option.detail ?? "", ...(option.terms ?? [])];
+
+    if (parts.some(part => plain(part).includes(needle))) return true;
+
+    // Quem digita telefone digita do jeito que quiser: "11 98888", "(11) 9" ou tudo junto. Só os
+    // dígitos de cada lado se comparam, então a máscara deixa de atrapalhar.
+    const typed = digitsOf(needle);
+
+    return typed.length > 0 && parts.some(part => digitsOf(part).includes(typed));
+}
 
 type UseFormSearch = {
     options: readonly FormSearchOption[];
@@ -29,9 +47,7 @@ export function useFormSearch({ options, defaultValue, onChange }: UseFormSearch
 
     const text = chosen ? chosen.label : typed;
     const needle = plain(chosen ? "" : typed);
-    const matches = needle
-        ? options.filter(option => plain(`${option.label} ${option.detail ?? ""}`).includes(needle))
-        : options;
+    const matches = needle ? options.filter(option => hits(option, needle)) : options;
 
     function choose(option: FormSearchOption) {
         setChosen(option);
