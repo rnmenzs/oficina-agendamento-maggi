@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
-# Sobe o sistema inteiro com um comando: banco, API e frontend.
+# Sobe o sistema inteiro com um comando: banco e API em containers, frontend nesta máquina.
+# Precisa só de Docker e Node — o SDK do .NET fica para os testes e para rodar a API fora.
 #
-#   ./run.sh            banco no ar, API na 5062, frontend na 5173
+#   ./run.sh            banco e API no Docker (API na 5062), frontend na 5173
 #   ./run.sh --reset    apaga o volume do banco antes, recriando do zero
 #
 # Com tudo no ar, o terminal fica escutando teclas:
 #
-#   r        reinicia a API e o frontend
+#   r        reconstrói a imagem da API com o código atual e reinicia API e frontend
 #   z        zera o banco: esvazia as três tabelas, sem seed. O esquema fica
 #   q        encerra (o mesmo que Ctrl+C)
 #
@@ -19,7 +20,6 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 LOGS="$PWD/.run"
-API_URL="http://localhost:5062"
 WEB_URL="http://localhost:5173"
 ESPERA=90
 
@@ -35,9 +35,12 @@ precisa() {
 # arquivo inteiro é o Program.cs; aqui só se pesca o que o psql precisa.
 env_de() { sed -n "s/^$1=//p" .env | tail -1; }
 
+# O psql é o de dentro do container: o banco já vem com ele, e assim ninguém precisa instalar o
+# cliente na máquina. Como a conexão é interna, porta do host e senha não entram. O `-T` é o que
+# deixa passar um arquivo do host pela entrada padrão (`-f - < script`).
 psql_banco() {
-    PGPASSWORD="$(env_de POSTGRES_PASSWORD)" psql -q -h localhost -p "$(env_de DB_PORT || echo 5432)" \
-        -U "$(env_de POSTGRES_USER)" -d "$(env_de POSTGRES_DB)" -v ON_ERROR_STOP=1 "$@"
+    docker compose exec -T db psql -q -U "$(env_de POSTGRES_USER)" -d "$(env_de POSTGRES_DB)" \
+        -v ON_ERROR_STOP=1 "$@"
 }
 
 ocupada() { ss -lnt 2>/dev/null | grep -q ":$1 "; }
@@ -71,10 +74,10 @@ esperar() {  # url, nome, log
     done
 }
 
-# Cada serviço sobe com setsid, no próprio grupo de processos, e é o grupo inteiro que morre aqui.
+# O frontend sobe com setsid, no próprio grupo de processos, e é o grupo inteiro que morre aqui.
 # Matar só o processo, ou só os filhos diretos, deixa neto de pé segurando a porta: o pnpm lança
-# um sh, que lança o node; o 'dotnet run' lança o Oficina.Api. Foi assim que um node ficou órfão
-# na 5173 no primeiro teste do "r", e o frontend novo subiu na 5174 sem ninguém perceber.
+# um sh, que lança o node. Foi assim que um node ficou órfão na 5173 no primeiro teste do "r", e o
+# frontend novo subiu na 5174 sem ninguém perceber.
 matar() {
     [ -n "$1" ] || return 0
     kill -TERM -- "-$1" 2>/dev/null || true
@@ -84,36 +87,59 @@ matar() {
 vivo() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null; }
 
 precisa docker "Instale o Docker, ou suba um PostgreSQL você mesmo e siga o README."
-precisa dotnet "Instale o SDK do .NET 10."
 precisa pnpm   "Rode 'corepack enable' para ter o pnpm."
-precisa psql   "Instale o cliente do PostgreSQL (postgresql-client)."
 
 [ -f .env ] || { erro "Falta o .env na raiz. Copie o .env.example e preencha usuário, senha e banco."; exit 1; }
 [ -f frontend/.env ] || cp frontend/.env.example frontend/.env
+
+# Uma porta só para a API, valendo para tudo: o Compose publica nela, este script espera por ela,
+# e o frontend a recebe por VITE_API_URL — que o Vite prefere ao .env dele. Ambiente ganha do
+# arquivo, como no Compose; sem nenhum dos dois, 5062.
+PORTA_API="${API_PORT:-$(env_de API_PORT)}"
+PORTA_API="${PORTA_API:-5062}"
+export API_PORT="$PORTA_API"
+API_URL="http://localhost:$PORTA_API"
 
 # Registro limpo a cada execução: log de ontem misturado com o de agora só atrapalha quem está
 # procurando por que alguma coisa não subiu.
 mkdir -p "$LOGS"
 rm -f "$LOGS"/*.log
 
-for porta in 5062 5173; do
+# Um container da API esquecido de uma subida anterior é deste script: sai antes de conferir as
+# portas, para a 5062 não ser acusada de ocupada por ele mesmo.
+docker compose stop api < /dev/null >/dev/null 2>&1 || true
+
+for porta in "$PORTA_API" 5173; do
     ocupada "$porta" && { erro "A porta $porta já está em uso. Derrube o processo que está nela e rode de novo."; exit 1; }
 done
 
-API_PID=""
+API_LOG_PID=""
 WEB_PID=""
 
-encerrar() {
+# O motivo vai na frase porque encerrar sem pedir é a pergunta que fica: foi q, Ctrl+C, ou alguém
+# de fora mandou um SIGTERM (outro processo, um kill)? E sai no fim: sem o exit, depois de um sinal
+# o bash voltaria ao laço, que acharia a API e o frontend mortos — mortos por este mesmo script —
+# e anunciaria "caiu" com tudo já no chão.
+# O código de saída não é um zero fixo: uma falha do script — imagem que não construiu, frontend
+# que não respondeu — chega aqui pelo trap EXIT com o código dela em $?, e sai com ele, para quem
+# automatiza não ler sucesso onde não houve. Os sinais passam o código explícito (130 para Ctrl+C,
+# 143 para SIGTERM, a convenção), porque no trap de sinal o $? é o do último comando concluído
+# antes do sinal, não o do read interrompido.
+encerrar() {  # motivo, código
+    local status=${2:-$?}
     trap - INT TERM EXIT
     echo
-    azul "Encerrando…"
+    azul "Encerrando (${1:-$([ "$status" -eq 0 ] && echo "fim do script" || echo "falha, código $status")})…"
     matar "$WEB_PID"
-    matar "$API_PID"
+    parar_api
     docker compose down >/dev/null 2>&1 || true
     echo "Tudo fora do ar. O volume do banco ficou; os dados voltam na próxima subida."
+    exit "$status"
 }
 
-trap encerrar INT TERM EXIT
+trap 'encerrar "Ctrl+C" 130' INT
+trap 'encerrar "SIGTERM recebido de outro processo" 143' TERM
+trap 'encerrar' EXIT
 
 # ── Banco ──────────────────────────────────────────────────────────────
 subir_banco() {
@@ -122,7 +148,7 @@ subir_banco() {
 
     # Os scripts numerados só rodam sozinhos quando o volume nasce vazio, e o healthcheck é por
     # TCP: "healthy" já significa que eles terminaram.
-    until [ "$(docker inspect -f '{{.State.Health.Status}}' oficina-db 2>/dev/null)" = "healthy" ]; do
+    until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(container_de db)" 2>/dev/null)" = "healthy" ]; do
         sleep 1
     done
 
@@ -134,19 +160,41 @@ subir_banco() {
         numero="$(basename "$script" | cut -d_ -f1)"
         [ "$numero" -ge 004 ] 2>/dev/null || continue
 
-        psql_banco -f "$script"
+        psql_banco -f - < "$script"
     done
 }
 
 # ── API ────────────────────────────────────────────────────────────────
+# A API sobe como container, pela mesma imagem do `docker compose up`: o --build garante que ela
+# reflete o código atual (com cache, é rápido quando nada mudou), e o --force-recreate faz o r
+# reiniciar mesmo quando a imagem é a mesma. O log do container vai para .run/api.log, como
+# sempre foi, por um `docker compose logs -f` que fica de pé enquanto a API estiver.
 subir_api() {
-    porta_livre 5062 || return 1
+    porta_livre "$PORTA_API" || return 1
 
-    azul "Subindo a API…"
-    setsid dotnet run --project backend/src/Oficina.Api < /dev/null > "$LOGS/api.log" 2>&1 &
-    API_PID=$!
+    # stdin fechado nos dois, como no frontend: o terminal é do laço de teclas lá embaixo, e um
+    # processo em segundo plano que o toca é parado pelo sistema (SIGTTIN) sem avisar ninguém.
+    azul "Subindo a API (imagem Docker — a primeira construção demora, as próximas usam cache)…"
+    if ! docker compose up -d --build --force-recreate api < /dev/null > "$LOGS/api-build.log" 2>&1; then
+        erro "A imagem da API não construiu. Fim de .run/api-build.log:"
+        tail -20 "$LOGS/api-build.log" >&2
+        return 1
+    fi
+
+    setsid docker compose logs -f --no-color --no-log-prefix api < /dev/null > "$LOGS/api.log" 2>&1 &
+    API_LOG_PID=$!
     esperar "$API_URL/api/agendamentos?pagina=1&tamanhoDaPagina=1" "A API" "$LOGS/api.log"
 }
+
+parar_api() {
+    matar "$API_LOG_PID"; API_LOG_PID=""
+    docker compose stop api < /dev/null >/dev/null 2>&1 || true
+}
+
+# Pelo serviço do Compose, não pelo nome do container: o nome mora só no docker-compose.yml.
+container_de() { docker compose ps -q "$1" 2>/dev/null; }
+
+api_viva() { [ "$(docker inspect -f '{{.State.Running}}' "$(container_de api)" 2>/dev/null)" = "true" ]; }
 
 # ── Frontend ───────────────────────────────────────────────────────────
 subir_web() {
@@ -157,7 +205,7 @@ subir_web() {
     # stdin fechado: o vite também escuta teclas (o "r" dele reinicia só o servidor dele), e as
     # teclas deste terminal são do laço lá embaixo.
     azul "Subindo o frontend…"
-    setsid pnpm --dir frontend dev < /dev/null > "$LOGS/web.log" 2>&1 &
+    VITE_API_URL="$API_URL/api" setsid pnpm --dir frontend dev < /dev/null > "$LOGS/web.log" 2>&1 &
     WEB_PID=$!
     esperar "$WEB_URL" "O frontend" "$LOGS/web.log"
 }
@@ -166,7 +214,7 @@ subir_web() {
 reiniciar() {
     azul "Reiniciando a API e o frontend…"
     matar "$WEB_PID"; WEB_PID=""
-    matar "$API_PID"; API_PID=""
+    parar_api
     subir_api && subir_web && no_ar || erro "O reinício não completou. Veja .run/api.log e .run/web.log, e tente r de novo."
 }
 
@@ -180,6 +228,8 @@ zerar_banco() {
         || erro "Não deu para zerar. O banco está no ar? Veja docker ps."
 }
 
+# Onde cada peça roda vai escrito: banco e API em containers, o frontend como processo desta
+# máquina, com pid.
 no_ar() {
     azul "
 No ar:
@@ -187,8 +237,12 @@ No ar:
   Swagger   $API_URL/swagger
   Catálogo  $WEB_URL/catalogo
 
+  Banco     container $(docker compose ps --format '{{.Name}}' db) (Docker)
+  API       container $(docker compose ps --format '{{.Name}}' api) (Docker)
+  Frontend  vite nesta máquina, pid $WEB_PID
+
 Registro em .run/api.log e .run/web.log.
-Teclas:  r  reinicia API e frontend   ·   z  zera o banco (esvazia, sem seed)   ·   q ou Ctrl+C  encerra"
+Teclas:  r  reconstrói e reinicia API e frontend   ·   z  zera o banco (esvazia, sem seed)   ·   q ou Ctrl+C  encerra"
 }
 
 # ── Subida ─────────────────────────────────────────────────────────────
@@ -212,14 +266,14 @@ while true; do
         case "$tecla" in
             r|R) reiniciar ;;
             z|Z) zerar_banco ;;
-            q|Q) exit 0 ;;
+            q|Q) encerrar "tecla q" ;;
         esac
         continue
     fi
 
-    if ! vivo "$API_PID" || ! vivo "$WEB_PID"; then
-        vivo "$API_PID" || erro "A API caiu. Fim de .run/api.log:"
-        vivo "$API_PID" || tail -10 "$LOGS/api.log" >&2
+    if ! api_viva || ! vivo "$WEB_PID"; then
+        api_viva || erro "A API caiu. Fim de .run/api.log:"
+        api_viva || tail -10 "$LOGS/api.log" >&2
         vivo "$WEB_PID" || erro "O frontend caiu. Fim de .run/web.log:"
         vivo "$WEB_PID" || tail -10 "$LOGS/web.log" >&2
         erro "Pressione r para subir de novo, ou q para encerrar."
@@ -228,7 +282,7 @@ while true; do
         case "$tecla" in
             r|R) reiniciar ;;
             z|Z) zerar_banco ;;
-            q|Q) exit 0 ;;
+            q|Q) encerrar "tecla q" ;;
         esac
     fi
 done
