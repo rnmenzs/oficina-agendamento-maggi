@@ -44,7 +44,7 @@ Copie o arquivo de exemplo e preencha as credenciais do banco:
 cp .env.example .env
 ```
 
-O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo backend .NET (connection string, CORS e segredo do JWT). Os valores `YOUR_*` precisam ser substituídos; `DB_PORT`, `CORS_ORIGINS` e `JWT_SECRET` já vêm prontos para uso local. Se o seu `.env` é de antes da autenticação, acrescente `JWT_SECRET`: sem ela a API não sobe.
+O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo backend .NET (connection string, CORS e segredo do JWT). Os valores `YOUR_*` precisam ser substituídos; `DB_PORT`, `CORS_ORIGINS` e `JWT_SECRET` já vêm prontos para uso local. Se o seu `.env` é de antes da autenticação, acrescente `JWT_SECRET`: sem ela nem o Compose nem a API sobem — de propósito, para um segredo padrão nunca ir parar num ambiente de verdade.
 
 | Variável | Exemplo | Descrição |
 |---|---|---|
@@ -264,7 +264,7 @@ carregamento. Serve para revisar a interface sem depender de dados.
 
 **Configuração via `.env`.** Credenciais em variáveis de ambiente mesmo num projeto de teste público. O `.env.example` versionado documenta as variáveis; o `.env` real não é versionado.
 
-**Autenticação simples: um usuário na tabela, JWT sem refresh.** O enunciado pede algo simples, e simples aqui é o que a oficina tem: uma pessoa na recepção. A senha fica em BCrypt na tabela `usuarios` — não em variável de ambiente, para a troca de senha ser um `UPDATE` e não um deploy. Quem confere login e senha é a BLL; a API só emite o token, assinado com HS256 e válido por uma hora, sem refresh: vencido, a tela pede login de novo. Login e senha errados recebem a mesma frase, e a conferência roda mesmo quando o login não existe, para o tempo de resposta não contar quais existem. A guarda no frontend é conveniência (evita mostrar uma tela que a API recusaria); quem protege é a API.
+**Autenticação simples: um usuário na tabela, JWT sem refresh.** Simples aqui é o que a oficina tem: uma pessoa na recepção. A senha fica em BCrypt na tabela `usuarios` — não em variável de ambiente, para a troca de senha ser um `UPDATE` e não um deploy. Quem confere login e senha é a BLL; a API só emite o token, assinado com HS256 e válido por uma hora, sem refresh: vencido, a tela pede login de novo. Login e senha errados recebem a mesma frase, e a conferência roda mesmo quando o login não existe, para o tempo de resposta não contar quais existem. A guarda no frontend é conveniência (evita mostrar uma tela que a API recusaria); quem protege é a API.
 
 ## O que faria diferente com mais tempo
 
