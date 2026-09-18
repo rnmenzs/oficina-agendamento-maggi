@@ -2,7 +2,7 @@
 
 Sistema para uma oficina mecânica agendar serviços (troca de óleo, revisão e diagnóstico) nos veículos dos seus clientes.
 
-- **Backend:** ASP.NET Core Web API (.NET 10), DDD em camadas (Domain, BLL, DAL, DTO, Api), SQL escrito à mão com Dapper sobre PostgreSQL, Swagger, testes em xUnit.
+- **Backend:** ASP.NET Core Web API (.NET 10), DDD em camadas (Domain, BLL, DAL, DTO, Api), SQL escrito à mão com Dapper sobre PostgreSQL, autenticação por JWT, Swagger, testes em xUnit.
 - **Frontend:** React + TypeScript + React Router v7 em modo framework, SPA (`ssr: false`), rotas por pasta com `flatRoutes()`, testes em Vitest.
 
 ## Estrutura do repositório
@@ -13,7 +13,7 @@ backend/                  solução .NET (Oficina.slnx)
   src/Oficina.BLL         casos de uso: orquestram domínio e repositórios
   src/Oficina.DAL         repositórios com SQL parametrizado (Dapper + Npgsql)
   src/Oficina.DTO         requests e responses da API
-  src/Oficina.Api         controllers, injeção de dependência, middleware de erros, Swagger, CORS
+  src/Oficina.Api         controllers, injeção de dependência, middleware de erros, JWT, Swagger, CORS
   tests/Oficina.Tests     testes unitários das regras de negócio (xUnit)
   tests/Oficina.IntegrationTests  API em memória sobre um banco criado na hora (xUnit)
 frontend/                 aplicação React Router v7 (SPA); testes unitários em app/utils (Vitest)
@@ -44,7 +44,7 @@ Copie o arquivo de exemplo e preencha as credenciais do banco:
 cp .env.example .env
 ```
 
-O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo backend .NET (connection string e CORS). Os valores `YOUR_*` precisam ser substituídos; `DB_PORT` e `CORS_ORIGINS` já vêm prontos para uso local.
+O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo backend .NET (connection string, CORS e segredo do JWT). Os valores `YOUR_*` precisam ser substituídos; `DB_PORT`, `CORS_ORIGINS` e `JWT_SECRET` já vêm prontos para uso local. Se o seu `.env` é de antes da autenticação, acrescente `JWT_SECRET`: sem ela a API não sobe.
 
 | Variável | Exemplo | Descrição |
 |---|---|---|
@@ -55,6 +55,7 @@ O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo ba
 | `CONNECTION_STRING` | `Host=localhost;Port=5432;...` | Connection string do backend, montada com os mesmos usuário, senha, banco e porta |
 | `CORS_ORIGINS` | `http://localhost:5173` | Origens permitidas no CORS (separadas por vírgula) |
 | `API_PORT` | `5062` | Porta da API no host, para o Compose, para o `run.sh` e para o frontend (que a recebe como `VITE_API_URL`) |
+| `JWT_SECRET` | `oficina-maggi-jwt-secret-...` | Segredo que assina os tokens de login, com pelo menos 32 caracteres; troque fora do ambiente local |
 
 > **Nota:** O `.env` está no `.gitignore`. Apenas o `.env.example` é versionado.
 
@@ -71,7 +72,7 @@ Ele constrói a imagem da API (a primeira vez demora; as seguintes usam cache), 
 | Tecla | Faz |
 |---|---|
 | `r` | reconstrói a imagem da API com o código atual e reinicia API e frontend |
-| `z` | zera o banco: esvazia as três tabelas, sem seed; o esquema, a API e o frontend ficam |
+| `z` | zera o banco: esvazia clientes, veículos e agendamentos, sem seed; o esquema, o usuário de login, a API e o frontend ficam |
 | `q` ou `Ctrl+C` | derruba tudo, banco incluído — o volume fica, os dados voltam na próxima subida |
 
 Para recriar o banco do zero com o seed, `./run.sh --reset`.
@@ -125,10 +126,10 @@ Depois execute os scripts em ordem (substituindo as variáveis conforme seu `.en
 PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/001_create_tables.sql
 PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/002_constraints_and_indexes.sql
 PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/003_seed.sql
-PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/004_seed_volume.sql
+PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/004_usuarios.sql
 ```
 
-Do `004` em diante são migrations: rodam também num banco que já existe, e cada uma é escrita para poder rodar de novo sem duplicar nada.
+Do `004` em diante são migrations: rodam também num banco que já existe, e cada uma é escrita para poder rodar de novo sem duplicar nada. Num volume do Compose criado antes de uma migration, quem a aplica é o `./run.sh`, a cada subida; sem o script, rode-a com o `psql` acima ou recrie o volume.
 
 Mantenha `CONNECTION_STRING` no `.env` coerente com o usuário, a senha, o banco e a porta escolhidos.
 
@@ -144,6 +145,16 @@ API em `http://localhost:5062`. Documentação Swagger em `http://localhost:5062
 
 O backend lê o `.env` da raiz do repositório automaticamente. Variáveis de ambiente do sistema têm prioridade sobre o arquivo.
 
+Login:
+
+Todos os endpoints de clientes, veículos e agendamentos exigem um token. Ele vem de `POST /api/auth/login` com o usuário que a migration `004` cria:
+
+```json
+{ "usuario": "admin", "senha": "admin" }
+```
+
+A resposta traz `{ "token": "..." }`, que vai no cabeçalho `Authorization: Bearer <token>` e vale por uma hora. No Swagger, o botão **Authorize** recebe o token e passa a mandá-lo em todas as chamadas. Login ou senha errados respondem `401` com a mesma frase para os dois casos; token ausente, inválido ou vencido responde `401` sem corpo.
+
 Testes:
 
 ```bash
@@ -151,7 +162,7 @@ cd backend
 dotnet test
 ```
 
-São duas suítes. `Oficina.Tests` (unitária) prova as regras de negócio contra repositórios falsos e roda sem nada no ar. `Oficina.IntegrationTests` sobe a API em memória sobre um banco criado na hora no PostgreSQL do Compose — `oficina_teste_<id>`, com os scripts `001` e `002`, apagado no fim — e prova o que só o banco prova: a constraint de exclusão e o advisory lock sob pedidos simultâneos, a gravação condicional de status, a consulta de pico e o formato das recusas. Precisa do banco no ar (`docker compose up -d db`); sem ele, falha dizendo isso. Para rodar só uma:
+São duas suítes. `Oficina.Tests` (unitária) prova as regras de negócio contra repositórios falsos e roda sem nada no ar. `Oficina.IntegrationTests` sobe a API em memória sobre um banco criado na hora no PostgreSQL do Compose — `oficina_teste_<id>`, com os scripts de estrutura (`001`, `002` e `004`), apagado no fim — e prova o que só o banco prova: a constraint de exclusão e o advisory lock sob pedidos simultâneos, a gravação condicional de status, a consulta de pico, o formato das recusas e o login com a senha da migration. Os demais endpoints rodam sob um esquema de autenticação de teste, que aceita qualquer chamada: o que se prova neles é a regra, não o JWT. Precisa do banco no ar (`docker compose up -d db`); sem ele, falha dizendo isso. Para rodar só uma:
 
 ```bash
 dotnet test tests/Oficina.Tests
@@ -177,6 +188,10 @@ O endereço da API vem do `.env` do frontend, em `VITE_API_URL`, e o padrão apo
 `http://localhost:5062/api`. Se você mudou a porta do backend, ajuste aqui também — e confira se a
 origem do frontend está em `CORS_ORIGINS`, no `.env` da raiz, senão o navegador recusa as
 requisições.
+
+A primeira tela é a de login (`admin` / `admin`). O token fica no `localStorage` e vai em toda
+chamada; quando ele vence, a próxima chamada recebe `401` e a aplicação volta para o login. O botão
+de sair fica na barra, à direita.
 
 Conferir os tipos e gerar o pacote de produção:
 
@@ -241,13 +256,15 @@ carregamento. Serve para revisar a interface sem depender de dados.
 
 **Paginação começa pelos agendamentos.** `LIMIT` e `OFFSET` no próprio SQL, porque é onde há volume e filtro combinado. Clientes e veículos ainda trazem todas as linhas; numa rede com dezenas de lojas isso passa a incomodar, e a intenção é reaproveitar a mesma paginação neles.
 
-**Mudança de esquema entra como migration.** Os scripts `001` a `003` são a linha de base de um banco novo e não se editam mais: qualquer alteração vira script novo, `004` em diante, aditivo e em transação. Editar um script já aplicado não muda nenhum banco que já exista — a diferença só apareceria em erro de execução.
+**Mudança de esquema entra como migration.** Os scripts `001` e `002` são a linha de base de um banco novo e não se editam mais: qualquer alteração de esquema vira script novo, `004` em diante, aditivo e em transação. Editar um script já aplicado não muda nenhum banco que já exista — a diferença só apareceria em erro de execução. O `003` é só dado de teste, e por isso pode crescer: o volume de agendamentos que cerca o dia de hoje vive nele.
 
 **Seed com datas relativas.** Calculadas a partir da próxima segunda-feira no momento da execução, então continuam válidas em qualquer data. A próxima segunda às 09:00 já nasce com três serviços simultâneos, para a regra de capacidade poder ser testada na hora.
 
 **Swagger sempre habilitado, redirecionamento HTTPS só fora de desenvolvimento e só com porta HTTPS configurada.** Local a API roda em HTTP na 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS; no container ela também só escuta HTTP. O perfil `https` continua disponível com `dotnet run --launch-profile https`.
 
 **Configuração via `.env`.** Credenciais em variáveis de ambiente mesmo num projeto de teste público. O `.env.example` versionado documenta as variáveis; o `.env` real não é versionado.
+
+**Autenticação simples: um usuário na tabela, JWT sem refresh.** O enunciado pede algo simples, e simples aqui é o que a oficina tem: uma pessoa na recepção. A senha fica em BCrypt na tabela `usuarios` — não em variável de ambiente, para a troca de senha ser um `UPDATE` e não um deploy. Quem confere login e senha é a BLL; a API só emite o token, assinado com HS256 e válido por uma hora, sem refresh: vencido, a tela pede login de novo. Login e senha errados recebem a mesma frase, e a conferência roda mesmo quando o login não existe, para o tempo de resposta não contar quais existem. A guarda no frontend é conveniência (evita mostrar uma tela que a API recusaria); quem protege é a API.
 
 ## O que faria diferente com mais tempo
 
