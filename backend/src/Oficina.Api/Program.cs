@@ -73,7 +73,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Agendamento de serviços em veículos dos clientes de uma oficina mecânica."
     });
 
-    // Cadeado no Swagger: o avaliador cola o token do login e testa os endpoints protegidos.
+    // Cadeado no Swagger: quem testa por ali cola o token do login e chama os endpoints protegidos.
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "Cole o token JWT retornado por POST /api/auth/login.",
@@ -108,7 +108,7 @@ var app = builder.Build();
 // Primeiro do pipeline: só assim ele enxerga as exceções de tudo que vem depois.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// Swagger ligado em todos os ambientes para facilitar a avaliação da API.
+// Swagger ligado em todos os ambientes para facilitar os testes e a exploração da API.
 app.UseSwagger();
 app.UseSwaggerUI();
 
