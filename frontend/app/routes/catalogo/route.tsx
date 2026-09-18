@@ -248,7 +248,7 @@ function SampleRegistration({ onDone }: { onDone: (name?: string) => void }) {
             <ModalBody>
                 <FormText
                     label="Nome"
-                    placeholder="Ana Souza"
+                    placeholder="Nome completo"
                     value={name}
                     onChange={event => setName(event.target.value)}
                 />
@@ -647,8 +647,8 @@ export default function Catalogo() {
                         <Usage code="<Card>{conteúdo com o seu padding}</Card>" layout="stack">
                             <Card>
                                 <div className="grid gap-4 p-4 sm:grid-cols-2">
-                                    <FormText label="Nome" placeholder="Ana Souza" />
-                                    <FormEmail label="E-mail" placeholder="ana.souza@email.com" />
+                                    <FormText label="Nome" placeholder="Nome completo" />
+                                    <FormEmail label="E-mail" placeholder="email@email.com" />
                                 </div>
                             </Card>
                         </Usage>
@@ -680,7 +680,7 @@ export default function Catalogo() {
 
                     <Component name="FormEmail">
                         <Usage code="<FormEmail label />  teclado de e-mail, sem corretor, limite de 254" layout="grid">
-                            <FormEmail label="E-mail" placeholder="maria@email.com" required />
+                            <FormEmail label="E-mail" placeholder="email@email.com" required />
                             <FormEmail
                                 label="E-mail"
                                 defaultValue="maria@email.com"
@@ -691,7 +691,7 @@ export default function Catalogo() {
 
                     <Component name="FormNumber">
                         <Usage code="<FormNumber digits={4} />  só dígito passa, sem setinha do navegador" layout="grid">
-                            <FormNumber label="Ano" digits={4} placeholder="2024" required />
+                            <FormNumber label="Ano" digits={4} placeholder="AAAA" required />
                             <FormNumber label="Ano" digits={4} defaultValue={2030} error="Ano deve estar entre 1900 e 2027." />
                         </Usage>
                     </Component>
@@ -757,8 +757,8 @@ export default function Catalogo() {
 
                     <Component name="FormText">
                         <Usage code="<FormText required />  a estrela marca o obrigatório" layout="grid">
-                            <FormText label="Nome" placeholder="Maria Silva" hint="Como aparece na ordem de serviço." required />
-                            <FormText label="Modelo" placeholder="Gol 1.0" />
+                            <FormText label="Nome" placeholder="Nome completo" hint="Como aparece na ordem de serviço." required />
+                            <FormText label="Modelo" placeholder="Marca e modelo" />
                         </Usage>
                         <Usage code="<FormText error />  a dica some, o erro ocupa o lugar" layout="grid">
                             <FormText

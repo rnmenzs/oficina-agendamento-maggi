@@ -66,7 +66,7 @@ export function VehicleForm({ clientName, errors, sending, onSubmit, onCancel }:
 
                         <FormNumber
                             label="Ano"
-                            placeholder={String(NEWEST - 1)}
+                            placeholder="AAAA"
                             hint={`De ${OLDEST} a ${NEWEST}.`}
                             required
                             digits={4}
@@ -76,7 +76,7 @@ export function VehicleForm({ clientName, errors, sending, onSubmit, onCancel }:
 
                         <FormText
                             label="Modelo"
-                            placeholder="Fiat Argo"
+                            placeholder="Marca e modelo"
                             required
                             wide
                             error={errors?.model}

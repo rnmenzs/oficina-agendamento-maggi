@@ -24,7 +24,7 @@ export function FormPhone({ defaultValue = "", onChange, ...rest }: FormPhonePro
             type="tel"
             inputMode="numeric"
             autoComplete="tel"
-            placeholder="(11) 98765-4321"
+            placeholder="(XX) XXXXX-XXXX"
             value={phone}
             onChange={change}
         />

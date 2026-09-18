@@ -65,7 +65,7 @@ export function ClientForm({ errors, sending, onSubmit, onCancel }: ClientFormPr
                     <div className="grid gap-4 sm:grid-cols-2">
                         <FormText
                             label="Nome"
-                            placeholder="Ana Souza"
+                            placeholder="Nome completo"
                             required
                             wide
                             error={errors?.name}
@@ -79,7 +79,7 @@ export function ClientForm({ errors, sending, onSubmit, onCancel }: ClientFormPr
 
                         <FormEmail
                             label="E-mail"
-                            placeholder="ana.souza@email.com"
+                            placeholder="email@email.com"
                             required
                             error={errors?.email}
                             value={email}
