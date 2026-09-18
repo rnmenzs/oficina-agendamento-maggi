@@ -1,5 +1,5 @@
 import type { ProblemDetails } from "~/types/TypeError";
-import { getToken, logout } from "~/utils/session";
+import { getToken, logout } from "./ServiceSession";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:5062/api";
 

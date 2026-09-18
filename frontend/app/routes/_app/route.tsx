@@ -2,7 +2,7 @@ import { Outlet, redirect, useNavigation, useRevalidator } from "react-router";
 
 import { LoadingBar } from "~/components/common/loading/LoadingBar";
 import { NavBar } from "~/components/common/navbar/NavBar";
-import { isAuthenticated, logout } from "~/utils/session";
+import { isAuthenticated, logout } from "~/services/ServiceSession";
 import { HOME, SECTIONS } from "./sections";
 
 // Guarda de autenticação: sem token, nenhuma tela do sistema carrega.

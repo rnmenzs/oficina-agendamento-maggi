@@ -1,5 +1,6 @@
-// O token fica no localStorage para a sessão sobreviver a um F5: é o que "simples" pede aqui.
-// Quem fala com a API é o ServiceHttp; quem decide se há sessão é a guarda do _app.
+// A sessão é um token no localStorage, para sobreviver a um F5: é o que "simples" pede aqui.
+// Fica em services, e não em utils, porque lê e grava fora do programa; quem manda o token é o
+// ServiceHttp, e quem decide se há sessão é a guarda do _app.
 const TOKEN_KEY = "oficina_token";
 
 export function getToken(): string | null {

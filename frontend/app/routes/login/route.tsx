@@ -6,8 +6,8 @@ import { FormText } from "~/components/common/forms/FormText";
 import { Brand } from "~/components/common/navbar/Brand";
 import { login } from "~/services/ServiceAuth";
 import { ApiError } from "~/services/ServiceHttp";
+import { isAuthenticated, saveToken } from "~/services/ServiceSession";
 import type { SubmitResult } from "~/types/TypeError";
-import { isAuthenticated, saveToken } from "~/utils/session";
 import type { Route } from "./+types/route";
 
 export function meta() {
