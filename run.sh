@@ -183,7 +183,8 @@ subir_api() {
 
     setsid docker compose logs -f --no-color --no-log-prefix api < /dev/null > "$LOGS/api.log" 2>&1 &
     API_LOG_PID=$!
-    esperar "$API_URL/api/agendamentos?pagina=1&tamanhoDaPagina=1" "A API" "$LOGS/api.log"
+    # A agenda pede login; o documento do Swagger é o que a API responde sem token.
+    esperar "$API_URL/swagger/v1/swagger.json" "A API" "$LOGS/api.log"
 }
 
 parar_api() {
