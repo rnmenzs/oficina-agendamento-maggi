@@ -162,7 +162,7 @@ cd backend
 dotnet test
 ```
 
-São duas suítes. `Oficina.Tests` (unitária) prova as regras de negócio contra repositórios falsos e roda sem nada no ar. `Oficina.IntegrationTests` sobe a API em memória sobre um banco criado na hora no PostgreSQL do Compose — `oficina_teste_<id>`, com os scripts de estrutura (`001`, `002` e `004`), apagado no fim — e prova o que só o banco prova: a constraint de exclusão e o advisory lock sob pedidos simultâneos, a gravação condicional de status, a consulta de pico, o formato das recusas e o login com a senha da migration. Os demais endpoints rodam sob um esquema de autenticação de teste, que aceita qualquer chamada: o que se prova neles é a regra, não o JWT. Precisa do banco no ar (`docker compose up -d db`); sem ele, falha dizendo isso. Para rodar só uma:
+São duas suítes. `Oficina.Tests` (unitária) prova as regras de negócio contra repositórios falsos e roda sem nada no ar. `Oficina.IntegrationTests` sobe a API em memória sobre um banco criado na hora no PostgreSQL do Compose — `oficina_teste_<id>`, com os scripts de estrutura (`001`, `002` e `004`), apagado no fim — e prova o que só o banco prova: a constraint de exclusão e o advisory lock sob pedidos simultâneos, a gravação condicional de status, a consulta de pico, o formato das recusas e a autenticação: o login com a senha da migration, e a recusa de quem chega sem token ou com um token que a API não assinou. Os outros testes fazem esse login uma vez e mandam o token em toda chamada, então o JWT é conferido de verdade em cada um. Precisa do banco no ar (`docker compose up -d db`); sem ele, falha dizendo isso. Para rodar só uma:
 
 ```bash
 dotnet test tests/Oficina.Tests

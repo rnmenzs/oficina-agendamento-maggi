@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.DTO.Auth;
@@ -6,11 +7,30 @@ using Oficina.IntegrationTests.Infra;
 
 namespace Oficina.IntegrationTests.Api;
 
-// O login é o único endpoint que a troca de esquema do ApiDeTeste não alcança: ele bate na tabela
-// usuarios de verdade, com o admin que a migration 004 deixa, e confere a senha com BCrypt.
+// O login bate na tabela usuarios de verdade, com o admin que a migration 004 deixa, e confere a
+// senha com BCrypt. É o mesmo login que o ApiDeTeste faz para os outros testes.
 [Collection("api")]
 public sealed class LoginTests(ApiDeTeste api)
 {
+    // Um cliente sem o Bearer do ApiDeTeste, ou com um token que não foi assinado pela API: os dois
+    // têm que bater na porta. É o teste que acusa um [Authorize] que suma de um controller.
+    [Theory]
+    [InlineData(null, "sem token")]
+    [InlineData("nao.e.um.jwt", "token inválido")]
+    public async Task Sem_token_valido_a_api_recusa_antes_de_chegar_na_regra(string? token, string caso)
+    {
+        using var anonimo = api.CreateClient();
+        if (token is not null) anonimo.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        foreach (var rota in new[] { "/api/clientes", "/api/agendamentos?pagina=1&tamanhoDaPagina=1", "/api/veiculos" })
+        {
+            var resposta = await anonimo.GetAsync(rota);
+
+            Assert.True(resposta.StatusCode == HttpStatusCode.Unauthorized, $"{rota} ({caso}): {resposta.StatusCode}");
+            Assert.Contains("Bearer", resposta.Headers.WwwAuthenticate.ToString());
+        }
+    }
+
     [Fact]
     public async Task Admin_com_a_senha_da_migration_recebe_um_token()
     {

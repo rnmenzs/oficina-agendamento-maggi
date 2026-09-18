@@ -1,12 +1,8 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Oficina.DTO.Agendamentos;
+using Oficina.DTO.Auth;
 using Oficina.DTO.Clientes;
 using Oficina.DTO.Veiculos;
 
@@ -26,25 +22,8 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
     private string? _conexaoOriginal;
     private string? _segredoOriginal;
 
+    /// <summary>Cliente já logado como o admin da migration: é o que os testes de regra usam.</summary>
     public HttpClient Cliente { get; private set; } = null!;
-
-    // Os endpoints exigem [Authorize]. Em vez de gerar um JWT para cada teste, o esquema de
-    // autenticação é trocado por um que aceita tudo: o que se prova aqui é a regra da API, não o
-    // middleware de JWT. O login em si continua real — o LoginTests bate nele com a tabela usuarios.
-    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
-    {
-        builder.ConfigureServices(services =>
-        {
-            services.AddAuthentication(AutenticacaoDeTeste.Esquema)
-                .AddScheme<AuthenticationSchemeOptions, AutenticacaoDeTeste>(AutenticacaoDeTeste.Esquema, _ => { });
-
-            services.PostConfigure<AuthenticationOptions>(options =>
-            {
-                options.DefaultAuthenticateScheme = AutenticacaoDeTeste.Esquema;
-                options.DefaultChallengeScheme = AutenticacaoDeTeste.Esquema;
-            });
-        });
-    }
 
     public async Task InitializeAsync()
     {
@@ -63,6 +42,7 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
             Environment.SetEnvironmentVariable(VariavelDoSegredo, SegredoDeTeste);
 
             Cliente = CreateClient();
+            Cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await LogarAsync());
         }
         catch
         {
@@ -86,6 +66,19 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
             RestaurarAmbiente();
             if (_banco is not null) await _banco.DisposeAsync();
         }
+    }
+
+    // O login é de verdade, com o admin que a migration 004 deixa no banco de teste: assim o JWT é
+    // emitido e conferido em todos os testes, e um [Authorize] que suma de um controller derruba o
+    // teste anônimo do LoginTests em vez de passar despercebido.
+    private async Task<string> LogarAsync()
+    {
+        var resposta = await Cliente.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "admin"));
+        resposta.EnsureSuccessStatusCode();
+
+        var corpo = await resposta.Content.ReadFromJsonAsync<LoginResponse>();
+
+        return corpo!.Token;
     }
 
     private void RestaurarAmbiente()
@@ -167,24 +160,5 @@ public static class Dia
         var dia = segunda.AddDays(indice / 5 * 7 + indice % 5);
 
         return new DateTimeOffset(dia.Year, dia.Month, dia.Day, hora, minuto, 0, FusoDaOficina);
-    }
-}
-
-// Esquema que aceita qualquer requisição como se viesse de um usuário logado. Registrado no
-// ConfigureWebHost do ApiDeTeste no lugar do JWT.
-public sealed class AutenticacaoDeTeste(
-    IOptionsMonitor<AuthenticationSchemeOptions> options,
-    ILoggerFactory logger,
-    UrlEncoder encoder
-) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-{
-    public const string Esquema = "Teste";
-
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-    {
-        var identidade = new ClaimsIdentity([new Claim(ClaimTypes.Name, "teste")], Esquema);
-        var bilhete = new AuthenticationTicket(new ClaimsPrincipal(identidade), Esquema);
-
-        return Task.FromResult(AuthenticateResult.Success(bilhete));
     }
 }
