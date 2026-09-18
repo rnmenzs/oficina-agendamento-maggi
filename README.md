@@ -248,6 +248,7 @@ carregamento. Serve para revisar a interface sem depender de dados.
 - **Validação devolvendo todos os erros de uma vez.** Hoje a entidade recusa no primeiro campo inválido; um formulário com três campos errados precisa de três envios.
 - **`ano` e `ano_modelo` no veículo.** O documento brasileiro traz os dois, com tetos diferentes. É um campo a mais atravessando esquema, domínio, DTO e formulário.
 - **Histórico de status em tabela própria.** O agendamento guarda só o status atual e a data da última mudança; quem mudou, quando e de onde é o que uma oficina pergunta quando algo dá errado.
+- **Exclusão em dois tempos.** Não há como remover cliente, veículo ou agendamento. O caminho seria um soft delete (`excluido_em` na linha, e as listagens e a agenda passam a ignorá-la, sem perder o histórico do que foi feito no carro) e um delete definitivo à parte, restrito, para o que nunca deveria ter entrado — um cadastro errado, um dado de teste.
 - **Autenticação de verdade.** Provisionar o primeiro usuário a partir do ambiente em vez da migration, limitar tentativas no login, mover a sessão para cookie `HttpOnly` em vez do `localStorage`, devolver o `401` do middleware no mesmo formato `problem+json` das outras recusas e voltar para a tela pedida depois do login.
 
 - **Frontend no Compose e um pipeline de CI.** O `docker compose up` sobe banco e API; o frontend ainda roda na máquina, e as três suítes de teste rodam à mão. Uma imagem com o build servido por nginx e um workflow que rode `dotnet test` e `pnpm test` a cada PR fechariam a entrega.
