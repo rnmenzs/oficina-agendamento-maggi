@@ -24,6 +24,7 @@ import { ModalControlProvider } from "~/components/common/modal/Modal.hook";
 import { ModalBody } from "~/components/common/modal/ModalBody";
 import { ModalFooter } from "~/components/common/modal/ModalFooter";
 import { ModalHeader } from "~/components/common/modal/ModalHeader";
+import { Brand } from "~/components/common/navbar/Brand";
 import { NavBar, type NavBarSection } from "~/components/common/navbar/NavBar";
 import { NavBarLink } from "~/components/common/navbar/NavBarLink";
 import { Notification, type NotificationTone } from "~/components/common/notification/Notification";
@@ -800,6 +801,20 @@ export default function Catalogo() {
                             <Card>
                                 <NavBar home="/agendamentos" sections={SECTIONS} />
                             </Card>
+                        </Usage>
+                        <Usage
+                            code="<NavBar home sections onLogout />  com sessão: o botão de sair só avisa, quem encerra é a rota"
+                            layout="stack"
+                        >
+                            <Card>
+                                <NavBar home="/agendamentos" sections={SECTIONS} onLogout={() => {}} />
+                            </Card>
+                        </Usage>
+                    </Component>
+
+                    <Component name="Brand">
+                        <Usage code="<Brand />  a marca como a barra e o login a escrevem">
+                            <Brand />
                         </Usage>
                     </Component>
 

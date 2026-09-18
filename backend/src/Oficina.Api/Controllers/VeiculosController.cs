@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Oficina.BLL.Veiculos;
 using Oficina.DTO.Veiculos;
@@ -5,6 +6,7 @@ using Oficina.DTO.Veiculos;
 namespace Oficina.Api.Controllers;
 
 // Sem [Route] na classe: dois endpoints vivem sob o cliente e um é solto, então cada ação traz a sua rota.
+[Authorize]
 [ApiController]
 public sealed class VeiculosController : ControllerBase
 {

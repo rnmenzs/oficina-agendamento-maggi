@@ -2,7 +2,7 @@
 
 Sistema para uma oficina mecânica agendar serviços (troca de óleo, revisão e diagnóstico) nos veículos dos seus clientes.
 
-- **Backend:** ASP.NET Core Web API (.NET 10), DDD em camadas (Domain, BLL, DAL, DTO, Api), SQL escrito à mão com Dapper sobre PostgreSQL, Swagger, testes em xUnit.
+- **Backend:** ASP.NET Core Web API (.NET 10), DDD em camadas (Domain, BLL, DAL, DTO, Api), SQL escrito à mão com Dapper sobre PostgreSQL, autenticação por JWT, Swagger, testes em xUnit.
 - **Frontend:** React + TypeScript + React Router v7 em modo framework, SPA (`ssr: false`), rotas por pasta com `flatRoutes()`, testes em Vitest.
 
 ## Estrutura do repositório
@@ -13,7 +13,7 @@ backend/                  solução .NET (Oficina.slnx)
   src/Oficina.BLL         casos de uso: orquestram domínio e repositórios
   src/Oficina.DAL         repositórios com SQL parametrizado (Dapper + Npgsql)
   src/Oficina.DTO         requests e responses da API
-  src/Oficina.Api         controllers, injeção de dependência, middleware de erros, Swagger, CORS
+  src/Oficina.Api         controllers, injeção de dependência, middleware de erros, JWT, Swagger, CORS
   tests/Oficina.Tests     testes unitários das regras de negócio (xUnit)
   tests/Oficina.IntegrationTests  API em memória sobre um banco criado na hora (xUnit)
 frontend/                 aplicação React Router v7 (SPA); testes unitários em app/utils (Vitest)
@@ -44,7 +44,7 @@ Copie o arquivo de exemplo e preencha as credenciais do banco:
 cp .env.example .env
 ```
 
-O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo backend .NET (connection string e CORS). Os valores `YOUR_*` precisam ser substituídos; `DB_PORT` e `CORS_ORIGINS` já vêm prontos para uso local.
+O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo backend .NET (connection string, CORS e segredo do JWT). Os valores `YOUR_*` precisam ser substituídos; `DB_PORT`, `CORS_ORIGINS` e `JWT_SECRET` já vêm prontos para uso local. Se o seu `.env` é de antes da autenticação, acrescente `JWT_SECRET`: sem ela nem o Compose nem a API sobem — de propósito, para um segredo padrão nunca ir parar num ambiente de verdade.
 
 | Variável | Exemplo | Descrição |
 |---|---|---|
@@ -55,6 +55,7 @@ O `.env` é lido tanto pelo Docker Compose (credenciais do banco) quanto pelo ba
 | `CONNECTION_STRING` | `Host=localhost;Port=5432;...` | Connection string do backend, montada com os mesmos usuário, senha, banco e porta |
 | `CORS_ORIGINS` | `http://localhost:5173` | Origens permitidas no CORS (separadas por vírgula) |
 | `API_PORT` | `5062` | Porta da API no host, para o Compose, para o `run.sh` e para o frontend (que a recebe como `VITE_API_URL`) |
+| `JWT_SECRET` | `oficina-maggi-jwt-secret-...` | Segredo que assina os tokens de login, com pelo menos 32 caracteres; troque fora do ambiente local |
 
 > **Nota:** O `.env` está no `.gitignore`. Apenas o `.env.example` é versionado.
 
@@ -71,7 +72,7 @@ Ele constrói a imagem da API (a primeira vez demora; as seguintes usam cache), 
 | Tecla | Faz |
 |---|---|
 | `r` | reconstrói a imagem da API com o código atual e reinicia API e frontend |
-| `z` | zera o banco: esvazia as três tabelas, sem seed; o esquema, a API e o frontend ficam |
+| `z` | zera o banco: esvazia clientes, veículos e agendamentos, sem seed; o esquema, o usuário de login, a API e o frontend ficam |
 | `q` ou `Ctrl+C` | derruba tudo, banco incluído — o volume fica, os dados voltam na próxima subida |
 
 Para recriar o banco do zero com o seed, `./run.sh --reset`.
@@ -125,10 +126,10 @@ Depois execute os scripts em ordem (substituindo as variáveis conforme seu `.en
 PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/001_create_tables.sql
 PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/002_constraints_and_indexes.sql
 PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/003_seed.sql
-PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/004_seed_volume.sql
+PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -p ${DB_PORT:-5432} -U $POSTGRES_USER -d $POSTGRES_DB -f scripts/004_usuarios.sql
 ```
 
-Do `004` em diante são migrations: rodam também num banco que já existe, e cada uma é escrita para poder rodar de novo sem duplicar nada.
+Do `004` em diante são migrations: rodam também num banco que já existe, e cada uma é escrita para poder rodar de novo sem duplicar nada. Num volume do Compose criado antes de uma migration, quem a aplica é o `./run.sh`, a cada subida; sem o script, rode-a com o `psql` acima ou recrie o volume.
 
 Mantenha `CONNECTION_STRING` no `.env` coerente com o usuário, a senha, o banco e a porta escolhidos.
 
@@ -144,6 +145,16 @@ API em `http://localhost:5062`. Documentação Swagger em `http://localhost:5062
 
 O backend lê o `.env` da raiz do repositório automaticamente. Variáveis de ambiente do sistema têm prioridade sobre o arquivo.
 
+Login:
+
+Todos os endpoints de clientes, veículos e agendamentos exigem um token. Ele vem de `POST /api/auth/login` com o usuário que a migration `004` cria:
+
+```json
+{ "usuario": "admin", "senha": "admin" }
+```
+
+A resposta traz `{ "token": "..." }`, que vai no cabeçalho `Authorization: Bearer <token>` e vale por uma hora. No Swagger, o botão **Authorize** recebe o token e passa a mandá-lo em todas as chamadas. Login ou senha errados respondem `401` com a mesma frase para os dois casos; token ausente, inválido ou vencido responde `401` sem corpo.
+
 Testes:
 
 ```bash
@@ -151,7 +162,7 @@ cd backend
 dotnet test
 ```
 
-São duas suítes. `Oficina.Tests` (unitária) prova as regras de negócio contra repositórios falsos e roda sem nada no ar. `Oficina.IntegrationTests` sobe a API em memória sobre um banco criado na hora no PostgreSQL do Compose — `oficina_teste_<id>`, com os scripts `001` e `002`, apagado no fim — e prova o que só o banco prova: a constraint de exclusão e o advisory lock sob pedidos simultâneos, a gravação condicional de status, a consulta de pico e o formato das recusas. Precisa do banco no ar (`docker compose up -d db`); sem ele, falha dizendo isso. Para rodar só uma:
+São duas suítes. `Oficina.Tests` (unitária) prova as regras de negócio contra repositórios falsos e roda sem nada no ar. `Oficina.IntegrationTests` sobe a API em memória sobre um banco criado na hora no PostgreSQL do Compose — `oficina_teste_<id>`, com os scripts de estrutura (`001`, `002` e `004`), apagado no fim — e prova o que só o banco prova: a constraint de exclusão e o advisory lock sob pedidos simultâneos, a gravação condicional de status, a consulta de pico, o formato das recusas e a autenticação: o login com a senha da migration, e a recusa de quem chega sem token ou com um token que a API não assinou. Os outros testes fazem esse login uma vez e mandam o token em toda chamada, então o JWT é conferido de verdade em cada um. Precisa do banco no ar (`docker compose up -d db`); sem ele, falha dizendo isso. Para rodar só uma:
 
 ```bash
 dotnet test tests/Oficina.Tests
@@ -178,6 +189,10 @@ O endereço da API vem do `.env` do frontend, em `VITE_API_URL`, e o padrão apo
 origem do frontend está em `CORS_ORIGINS`, no `.env` da raiz, senão o navegador recusa as
 requisições.
 
+A primeira tela é a de login (`admin` / `admin`). O token fica no `localStorage` e vai em toda
+chamada; quando ele vence, a próxima chamada recebe `401` e a aplicação volta para o login. O botão
+de sair fica na barra, à direita.
+
 Conferir os tipos e gerar o pacote de produção:
 
 ```bash
@@ -203,52 +218,37 @@ carregamento. Serve para revisar a interface sem depender de dados.
 
 ## Decisões técnicas
 
-**PostgreSQL.** Gratuito, sobe com um comando no Docker, e tem `tstzrange` com constraint de exclusão: o próprio banco garante que um veículo não tenha dois agendamentos sobrepostos, mesmo com requisições simultâneas.
+**PostgreSQL com Dapper.** O PostgreSQL tem `tstzrange` com constraint de exclusão: é o próprio banco quem garante que um veículo não tenha dois agendamentos sobrepostos, mesmo sob requisições simultâneas. O Dapper só poupa a leitura do `DataReader` coluna a coluna — não gera SQL nem rastreia entidades.
 
-**Dapper em vez de ADO.NET puro.** O SQL continua escrito à mão e parametrizado; o Dapper só tira o código repetitivo de ler o `DataReader` coluna por coluna. Não é ORM: não gera SQL nem rastreia entidades.
+**Ids em UUID, gerados no domínio.** Inteiro sequencial expõe volume, permite enumerar recursos pela URL e amarra a identidade ao banco. `Guid.CreateVersion7()` é ordenado por tempo, então não fragmenta o índice.
 
-**Controllers em vez de Minimal APIs.** Deixam cada endpoint fino, com `[ProducesResponseType]` alimentando o Swagger e binding de DTO automático.
+**Instantes em `timestamptz`, respostas em UTC, expediente no fuso da oficina.** A entrada aceita ISO 8601 com qualquer offset e a saída sai em UTC; exibir é trabalho do frontend. "Não agendar no passado" e "cancelar até 2 horas antes" comparam instantes. "Das 08:00 às 18:00" é hora local: a regra converte para `America/Sao_Paulo` antes de olhar dia e hora, e o mesmo fuso traduz um dia em faixa de instantes para a listagem — sem isso, um agendamento das 22:00 de sexta cairia no sábado em UTC. A listagem compara a coluna direto (`inicio >= @De AND inicio < @Ate`) em vez de envolvê-la em `AT TIME ZONE`, que impede o índice: com 200 mil linhas, 0,3 ms contra 61 ms.
 
-**xUnit.** É o framework dos templates oficiais do .NET. `[Theory]` com `[InlineData]` encaixa nas regras de negócio, que são tabelas de casos.
+**Coluna `fim` gravada e conferida pelo banco.** A duração vem do tipo de serviço, mas gravar o fim torna capacidade e sobreposição comparações de intervalo indexáveis; uma `CHECK` recalcula `inicio + duração` e recusa linha inconsistente. "Terminar dentro do horário" é lido com o fim inclusivo: uma troca de óleo às 11:30 de sábado termina às 12:00 e é aceita.
 
-**Ids em UUID.** Decisão pensando num projeto real: inteiro autoincremento expõe o volume de registros, permite enumerar recursos pela URL e amarra a identidade ao banco. Com UUID a entidade nasce com id no domínio, via `Guid.CreateVersion7()`, ordenado por tempo e por isso amigável ao índice.
+**Enums e placa como texto no banco.** Tipos de serviço e status são enum no código e texto com `CHECK` no banco, legíveis direto na tabela; nos DTOs também são texto, porque o projeto DTO não referencia o domínio. A placa é aceita com ou sem hífen, em qualquer caixa, e gravada em maiúsculas sem hífen.
 
-**Datas em `timestamptz`, respostas sempre em UTC.** A entrada aceita ISO 8601 com qualquer offset; a saída vem normalizada em UTC, e converter para exibição é trabalho do frontend. "Não agendar no passado" e "cancelar até 2 horas antes" comparam instantes, sem fuso. Já "das 08:00 às 18:00" é hora local: a regra converte para `America/Sao_Paulo` antes de olhar dia da semana e hora. O fuso fica na entidade, que também traduz um dia em faixa de instantes para a listagem — assim a string existe num lugar só. Sem essa tradução, um agendamento das 22:00 de sexta seria sábado em UTC e apareceria no dia errado.
+**Capacidade é pico, não contagem de janela.** "Três serviços ao mesmo tempo" é lido como "qual o maior número de simultâneos dentro deste período?", e não "quantos o cruzam". Três serviços de trinta minutos em sequência cruzam a janela de um de noventa sem nunca estarem juntos; contá-los recusaria um horário que cabe. A consulta mede a lotação no início da janela e no início de cada agendamento dentro dela, porque o pico só muda quando alguém começa. Só `Agendado` e `EmAndamento` contam — o mesmo critério dos índices parciais e da constraint de exclusão.
 
-**A listagem filtra por período, comparando a coluna direto.** O filtro recebe `dataInicio` e `dataFim`, e um dia só é pedir a mesma data nas duas pontas. O serviço pede a faixa meia-aberta de instantes ao domínio e o SQL compara `a.inicio >= @De AND a.inicio < @Ate`. A forma anterior, `(a.inicio AT TIME ZONE 'America/Sao_Paulo')::date = @Data`, dava o mesmo resultado mas envolvia a coluna numa função, o que impede o índice de `inicio`: medido com 200 mil linhas, 61 ms de varredura completa contra 0,3 ms usando o índice.
+**Concorrência fechada na gravação.** A checagem na BLL recusa antes de tentar gravar, mas entre consultar e gravar cabe outra requisição. Para o veículo, a constraint de exclusão fecha a janela. Para a capacidade, que não cabe numa constraint declarativa, `pg_advisory_xact_lock` serializa quem grava agendamento: a gravação mede o pico de novo dentro da transação do `INSERT` e recusa se não couber. Seis pedidos simultâneos para o mesmo horário entravam os seis; agora entram três.
 
-**O fim do serviço é inclusivo, e domingo é fechado.** Uma troca de óleo às 11:30 de sábado termina exatamente às 12:00 e é aceita; recusar obrigaria a oficina a parar de agendar antes de fechar. O serviço inteiro também precisa caber no mesmo dia.
+**Mudar status é um endpoint, e a gravação confere o status lido.** `PATCH /api/agendamentos/{id}/status` recebe o destino, porque a tela já calcula quais transições valem. O `UPDATE` leva o status anterior no `WHERE`: sem isso, duas chamadas simultâneas validariam a transição sobre o mesmo status e a segunda apagaria a primeira. Se nada for atualizado, a resposta é conflito.
 
-**Coluna `fim` gravada, e conferida pelo banco.** A duração vem do tipo de serviço no domínio, mas gravar o fim torna capacidade e sobreposição uma comparação de intervalos indexável. Uma `CHECK` recalcula `inicio + duração` e recusa linha inconsistente, então as consultas confiam na coluna.
+**As consultas de agendamento trazem veículo e cliente.** Agenda que mostra só identificadores é inútil na tela, e buscar por linha custaria uma chamada por agendamento. A entidade continua referenciando o veículo por id; os dados de exibição vêm numa projeção ao lado dela.
 
-**Carimbos de tempo mantidos pelo banco.** `criado_em` por `DEFAULT now()` e `atualizado_em` movido por gatilho a cada `UPDATE`. Fica no banco, e não repetido em cada comando, por dois motivos: vale também para escrita manual em SQL, e mantém todos os instantes sob o mesmo relógio. A função do gatilho não cita tabela, então as três a reaproveitam. O efeito colateral aceito é o carimbo avançar mesmo quando nenhum valor muda.
+**Mudança de esquema entra como migration.** `001` e `002` são a linha de base de um banco novo e não se editam mais; alteração de esquema vira script novo, `004` em diante, aditivo, em transação e reexecutável. O `003` é só dado de teste, com datas relativas à próxima segunda-feira, e por isso pode crescer — a próxima segunda às 09:00 já nasce com três serviços simultâneos, para a regra de capacidade poder ser testada na hora.
 
-**Enums simples, gravados e trafegados como texto.** Três tipos de serviço com um único atributo, a duração, e quatro status sem atributo nenhum não justificam classe de enumeração; o `switch` sobre enum ainda faz o compilador avisar quando um valor novo fica sem duração. No banco são texto com `CHECK`, legíveis direto na tabela. Nos DTOs também são texto, porque o projeto DTO não referencia o domínio e espelhar os enums criaria uma terceira cópia dos nomes.
-
-**Placa normalizada.** Aceita `ABC-1234` ou `ABC1D23` em qualquer caixa e grava em maiúsculas sem hífen, com `UNIQUE` e `CHECK` de formato. Formatar para exibição é trabalho do frontend.
-
-**Só `Agendado` e `EmAndamento` ocupam vaga.** Cancelado e concluído não contam para capacidade nem para sobreposição. O mesmo critério está nos índices parciais, na constraint de exclusão e nas consultas.
-
-**Capacidade é pico, não contagem de janela.** A regra fala em três serviços *ao mesmo tempo*, então a pergunta que o banco responde é "qual o maior número de serviços simultâneos dentro deste período?" — e não "quantos cruzam este período". A diferença aparece com três serviços de trinta minutos em sequência: eles cruzam a janela de um de noventa sem nunca estarem juntos, e contá-los recusaria um horário que cabe. A consulta mede a lotação no início da janela e no início de cada agendamento dentro dela, porque o pico só muda quando alguém começa.
-
-**Sobreposição por veículo garantida por constraint de exclusão.** Se duas requisições passarem pela validação ao mesmo tempo, o banco recusa a segunda — proteção contra concorrência sem código nenhum. A capacidade de três simultâneos não cabe numa constraint declarativa: é checada na BLL e garantida na gravação, que mede o pico de novo sob um advisory lock, na mesma transação do `INSERT`.
-
-**As duas regras que consultam dados são checadas na BLL e garantidas na gravação.** A checagem na camada de regras mantém a regra junto das outras e recusa antes de tentar gravar. Sozinha ela tem brecha: entre consultar e gravar cabe outra requisição, e as duas passariam pela consulta. Para o veículo, a constraint de exclusão fecha essa janela. Para a capacidade, `pg_advisory_xact_lock` serializa quem grava agendamento: a gravação mede o pico dentro da transação, já enxergando o que a requisição anterior gravou, e recusa se não couber. Seis pedidos simultâneos para o mesmo horário entravam os seis antes disso; agora entram três.
-
-**Alterar status é um endpoint só, e a gravação confere o status lido.** `PATCH /api/agendamentos/{id}/status` recebe o destino, em vez de três rotas por ação, porque a tela já precisa calcular quais transições valem para o status atual. A gravação leva o status anterior no `WHERE`: entre ler e gravar cabe outra requisição, e sem essa condição duas chamadas simultâneas validariam a transição sobre o mesmo status e a segunda apagaria a primeira, deixando um estado que nenhuma transição permite. Se nada for atualizado, a resposta é conflito.
-
-**As consultas de agendamento trazem veículo e cliente.** Uma agenda que mostra só identificadores é inútil na tela, e buscar esses dados por linha custaria uma chamada por agendamento. A entidade continua referenciando o veículo por id: quem carrega os dados de exibição é a projeção que a consulta devolve, ao lado da entidade.
-
-**Paginação começa pelos agendamentos.** `LIMIT` e `OFFSET` no próprio SQL, porque é onde há volume e filtro combinado. Clientes e veículos ainda trazem todas as linhas; numa rede com dezenas de lojas isso passa a incomodar, e a intenção é reaproveitar a mesma paginação neles.
-
-**Mudança de esquema entra como migration.** Os scripts `001` a `003` são a linha de base de um banco novo e não se editam mais: qualquer alteração vira script novo, `004` em diante, aditivo e em transação. Editar um script já aplicado não muda nenhum banco que já exista — a diferença só apareceria em erro de execução.
-
-**Seed com datas relativas.** Calculadas a partir da próxima segunda-feira no momento da execução, então continuam válidas em qualquer data. A próxima segunda às 09:00 já nasce com três serviços simultâneos, para a regra de capacidade poder ser testada na hora.
-
-**Swagger sempre habilitado, redirecionamento HTTPS só fora de desenvolvimento e só com porta HTTPS configurada.** Local a API roda em HTTP na 5062, sem certificado de desenvolvimento e sem redirect, que quebraria o preflight de CORS; no container ela também só escuta HTTP. O perfil `https` continua disponível com `dotnet run --launch-profile https`.
-
-**Configuração via `.env`.** Credenciais em variáveis de ambiente mesmo num projeto de teste público. O `.env.example` versionado documenta as variáveis; o `.env` real não é versionado.
+**Autenticação simples: um usuário na tabela, JWT sem refresh.** Simples aqui é o que a oficina tem: uma pessoa na recepção. A senha fica em BCrypt na tabela `usuarios`, para a troca ser um `UPDATE` e não um deploy. A BLL confere login e senha; a API só emite o token, HS256, uma hora de vida. Login e senha errados recebem a mesma frase, e a conferência roda mesmo quando o login não existe, para o tempo de resposta não contar quais existem. O segredo vem do ambiente sem valor padrão: faltando, nem o Compose nem a API sobem. A guarda no frontend é conveniência; quem protege é a API. O `admin`/`admin` da migration é credencial de desenvolvimento.
 
 ## O que faria diferente com mais tempo
 
-Seção preenchida ao final do desenvolvimento.
+- **Uma entidade de oficina.** Fuso, horário de funcionamento e dias de atendimento são constantes do domínio. Com a oficina como entidade, o expediente seria configurável, um feriado ou um dia fechado seria um registro em vez de um deploy, e uma rede com lojas em fusos diferentes teria cada unidade com o seu.
+- **Catálogo de serviços em tabela.** Tipo e duração são enum no código e `CHECK` no banco — garantia forte, mas serviço novo exige migration e deploy. Para um catálogo que muda, a duração viria do banco.
+- **Paginação em clientes e veículos.** Só a agenda pagina; as outras listagens trazem tudo, e a busca de clientes filtra em memória. A paginação já existe e é questão de reaproveitá-la.
+- **Validação devolvendo todos os erros de uma vez.** Hoje a entidade recusa no primeiro campo inválido; um formulário com três campos errados precisa de três envios.
+- **`ano` e `ano_modelo` no veículo.** O documento brasileiro traz os dois, com tetos diferentes. É um campo a mais atravessando esquema, domínio, DTO e formulário.
+- **Histórico de status em tabela própria.** O agendamento guarda só o status atual e a data da última mudança; quem mudou, quando e de onde é o que uma oficina pergunta quando algo dá errado.
+- **Autenticação de verdade.** Provisionar o primeiro usuário a partir do ambiente em vez da migration, limitar tentativas no login, mover a sessão para cookie `HttpOnly` em vez do `localStorage`, devolver o `401` do middleware no mesmo formato `problem+json` das outras recusas e voltar para a tela pedida depois do login.
+
+- **Frontend no Compose e um pipeline de CI.** O `docker compose up` sobe banco e API; o frontend ainda roda na máquina, e as três suítes de teste rodam à mão. Uma imagem com o build servido por nginx e um workflow que rode `dotnet test` e `pnpm test` a cada PR fechariam a entrega.
+

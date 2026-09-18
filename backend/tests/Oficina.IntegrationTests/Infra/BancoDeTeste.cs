@@ -45,9 +45,10 @@ public sealed class BancoDeTeste : IAsyncDisposable
             );
         }
 
-        // Só a estrutura, lida da pasta, em ordem: uma migration nova entra aqui sozinha. Os seeds
-        // ficam de fora pelo nome — a convenção da pasta é que dado de teste tem "seed" no nome
-        // (003_seed, 004_seed_volume) — porque cada teste cria o que precisa.
+        // Só a estrutura, lida da pasta, em ordem: uma migration nova entra aqui sozinha. O seed
+        // fica de fora pelo nome — a convenção da pasta é que dado de teste tem "seed" no nome
+        // (003_seed) — porque cada teste cria o que precisa. O admin da 004 entra: é o login que o
+        // LoginTests usa, e faz parte da estrutura como o primeiro usuário de um sistema.
         var estrutura = Directory.GetFiles(Path.Combine(RaizDoRepositorio, "scripts"), "*.sql")
             .Where(caminho => !Path.GetFileName(caminho).Contains("seed", StringComparison.OrdinalIgnoreCase))
             .OrderBy(caminho => Path.GetFileName(caminho), StringComparer.Ordinal);

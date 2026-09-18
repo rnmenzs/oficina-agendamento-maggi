@@ -1,6 +1,10 @@
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.OpenApi;
+using Oficina.Api.Auth;
 using Oficina.Api.Middleware;
 using Oficina.BLL.Agendamentos;
+using Oficina.BLL.Autenticacao;
 using Oficina.BLL.Clientes;
 using Oficina.BLL.Veiculos;
 using Oficina.DAL.DependencyInjection;
@@ -28,6 +32,30 @@ builder.Services.AddScoped<ClienteServico>();
 builder.Services.AddScoped<VeiculoServico>();
 builder.Services.AddScoped<AgendamentoServico>();
 
+// Autenticação simples: os usuários estão na tabela usuarios (migration 004), a senha é conferida
+// pela BLL e a API emite um JWT assinado com HS256. O segredo é conferido aqui, na subida, e não
+// no primeiro login: um segredo curto demais é erro de configuração, e a API nem deve abrir.
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET");
+
+if (jwtSecret is null || jwtSecret.Length < 32)
+{
+    throw new InvalidOperationException(
+        "JWT_SECRET precisa estar definida no ambiente ou no .env, com pelo menos 32 caracteres."
+    );
+}
+
+builder.Services.AddSingleton(new GeradorDeToken(jwtSecret));
+builder.Services.AddScoped<AutenticacaoServico>();
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = GeradorDeToken.ParametrosDeValidacao(jwtSecret);
+    });
+
+builder.Services.AddAuthorization();
+
 // Se CORS_ORIGINS estiver definida, sobrescreve as origens do appsettings.
 var corsOriginsOverride = Environment.GetEnvironmentVariable("CORS_ORIGINS");
 
@@ -38,11 +66,30 @@ builder.Services
 
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Oficina API",
         Version = "v1",
         Description = "Agendamento de serviços em veículos dos clientes de uma oficina mecânica."
+    });
+
+    // Cadeado no Swagger: o avaliador cola o token do login e testa os endpoints protegidos.
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Cole o token JWT retornado por POST /api/auth/login.",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecuritySchemeReference("Bearer", document, null),
+            new List<string>()
+        }
     });
 });
 
@@ -66,6 +113,9 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors(FrontendCorsPolicy);
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Redirect para HTTPS só fora de desenvolvimento e só quando há uma porta HTTPS para onde
 // redirecionar: local a API roda em HTTP e um redirect quebraria o preflight de CORS; no

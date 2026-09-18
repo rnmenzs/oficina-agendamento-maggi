@@ -1,6 +1,8 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Oficina.DTO.Agendamentos;
+using Oficina.DTO.Auth;
 using Oficina.DTO.Clientes;
 using Oficina.DTO.Veiculos;
 
@@ -11,31 +13,40 @@ namespace Oficina.IntegrationTests.Infra;
 public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private const string VariavelDaConexao = "CONNECTION_STRING";
+    private const string VariavelDoSegredo = "JWT_SECRET";
+
+    // Qualquer valor com 32 caracteres serve: o token só precisa ser emitido e conferido pelo mesmo host.
+    private const string SegredoDeTeste = "segredo-dos-testes-de-integracao-da-oficina";
 
     private BancoDeTeste? _banco;
     private string? _conexaoOriginal;
+    private string? _segredoOriginal;
 
+    /// <summary>Cliente já logado como o admin da migration: é o que os testes de regra usam.</summary>
     public HttpClient Cliente { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
         _banco = await BancoDeTeste.CriarAsync();
 
-        // O Program.cs lê CONNECTION_STRING do ambiente antes do .env, então é aqui que a API é
-        // apontada para o banco de teste — antes de o host existir. O valor que estava lá volta no
-        // fim: o runner da IDE reaproveita o processo entre execuções, e a próxima herdaria uma
-        // string apontando para um banco já apagado.
+        // O Program.cs lê o ambiente antes do .env, então é aqui que a API é apontada para o banco
+        // de teste e ganha um segredo de JWT próprio — antes de o host existir, e sem depender do
+        // .env de quem roda. Os valores que estavam lá voltam no fim: o runner da IDE reaproveita o
+        // processo entre execuções, e a próxima herdaria uma string apontando para um banco já apagado.
         // Se o host não subir, o xUnit não chama o DisposeAsync — o banco é apagado aqui mesmo.
         try
         {
             _conexaoOriginal = Environment.GetEnvironmentVariable(VariavelDaConexao);
+            _segredoOriginal = Environment.GetEnvironmentVariable(VariavelDoSegredo);
             Environment.SetEnvironmentVariable(VariavelDaConexao, _banco.ConnectionString);
+            Environment.SetEnvironmentVariable(VariavelDoSegredo, SegredoDeTeste);
 
             Cliente = CreateClient();
+            Cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await LogarAsync());
         }
         catch
         {
-            Environment.SetEnvironmentVariable(VariavelDaConexao, _conexaoOriginal);
+            RestaurarAmbiente();
             await _banco.DisposeAsync();
             throw;
         }
@@ -52,9 +63,28 @@ public sealed class ApiDeTeste : WebApplicationFactory<Program>, IAsyncLifetime
         }
         finally
         {
-            Environment.SetEnvironmentVariable(VariavelDaConexao, _conexaoOriginal);
+            RestaurarAmbiente();
             if (_banco is not null) await _banco.DisposeAsync();
         }
+    }
+
+    // O login é de verdade, com o admin que a migration 004 deixa no banco de teste: assim o JWT é
+    // emitido e conferido em todos os testes, e um [Authorize] que suma de um controller derruba o
+    // teste anônimo do LoginTests em vez de passar despercebido.
+    private async Task<string> LogarAsync()
+    {
+        var resposta = await Cliente.PostAsJsonAsync("/api/auth/login", new LoginRequest("admin", "admin"));
+        resposta.EnsureSuccessStatusCode();
+
+        var corpo = await resposta.Content.ReadFromJsonAsync<LoginResponse>();
+
+        return corpo!.Token;
+    }
+
+    private void RestaurarAmbiente()
+    {
+        Environment.SetEnvironmentVariable(VariavelDaConexao, _conexaoOriginal);
+        Environment.SetEnvironmentVariable(VariavelDoSegredo, _segredoOriginal);
     }
 
     // ── Dados de cada teste ────────────────────────────────────────────────

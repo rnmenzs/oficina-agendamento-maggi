@@ -176,14 +176,15 @@ subir_api() {
     # processo em segundo plano que o toca é parado pelo sistema (SIGTTIN) sem avisar ninguém.
     azul "Subindo a API (imagem Docker — a primeira construção demora, as próximas usam cache)…"
     if ! docker compose up -d --build --force-recreate api < /dev/null > "$LOGS/api-build.log" 2>&1; then
-        erro "A imagem da API não construiu. Fim de .run/api-build.log:"
+        erro "A API não subiu pelo Compose. Fim de .run/api-build.log:"
         tail -20 "$LOGS/api-build.log" >&2
         return 1
     fi
 
     setsid docker compose logs -f --no-color --no-log-prefix api < /dev/null > "$LOGS/api.log" 2>&1 &
     API_LOG_PID=$!
-    esperar "$API_URL/api/agendamentos?pagina=1&tamanhoDaPagina=1" "A API" "$LOGS/api.log"
+    # A agenda pede login; o documento do Swagger é o que a API responde sem token.
+    esperar "$API_URL/swagger/v1/swagger.json" "A API" "$LOGS/api.log"
 }
 
 parar_api() {
